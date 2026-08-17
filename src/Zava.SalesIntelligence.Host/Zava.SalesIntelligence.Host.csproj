@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Zava.SalesIntelligence.Workflow\Zava.SalesIntelligence.Workflow.csproj" />
+    <ProjectReference Include="..\Zava.SalesIntelligence.Agents\Zava.SalesIntelligence.Agents.csproj" />
+    <ProjectReference Include="..\Zava.SalesIntelligence.Dataverse\Zava.SalesIntelligence.Dataverse.csproj" />
+  </ItemGroup>
+
+</Project>

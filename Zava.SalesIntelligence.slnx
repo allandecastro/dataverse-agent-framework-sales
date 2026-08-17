@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Zava.SalesIntelligence.Agents/Zava.SalesIntelligence.Agents.csproj" />
+    <Project Path="src/Zava.SalesIntelligence.Dataverse/Zava.SalesIntelligence.Dataverse.csproj" />
+    <Project Path="src/Zava.SalesIntelligence.Host/Zava.SalesIntelligence.Host.csproj" />
+    <Project Path="src/Zava.SalesIntelligence.Workflow/Zava.SalesIntelligence.Workflow.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Zava.SalesIntelligence.Tests/Zava.SalesIntelligence.Tests.csproj" />
+  </Folder>
+</Solution>

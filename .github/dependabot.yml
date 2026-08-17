@@ -1,0 +1,20 @@
+version: 2
+
+# Weekly updates for NuGet (reads Directory.Packages.props) and the CI actions.
+# A vulnerable transitive package already slipped in once, so keeping deps fresh
+# is worth the noise. Grouped to keep the pull request count sane.
+updates:
+  - package-ecosystem: nuget
+    directory: "/"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      agent-framework:
+        patterns:
+          - "Microsoft.Agents.AI*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly

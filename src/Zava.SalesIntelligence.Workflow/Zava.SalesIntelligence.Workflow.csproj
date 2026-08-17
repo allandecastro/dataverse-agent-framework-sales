@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Zava.SalesIntelligence.Agents\Zava.SalesIntelligence.Agents.csproj" />
+    <ProjectReference Include="..\Zava.SalesIntelligence.Dataverse\Zava.SalesIntelligence.Dataverse.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Agents.AI.Workflows" />
+  </ItemGroup>
+
+</Project>
