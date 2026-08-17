@@ -1,0 +1,38 @@
+name: CI
+
+# Keeps the public branch green: restore, build, test, and verify formatting on
+# every PR and every push to main. Deliberately does not touch Azure or Dataverse.
+# The phase 2 determinism gate hits live models and stays a manual acceptance step.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Zava.SalesIntelligence.slnx
+
+      - name: Build
+        run: dotnet build Zava.SalesIntelligence.slnx --no-restore -c Release
+
+      - name: Test
+        run: dotnet test Zava.SalesIntelligence.slnx --no-build -c Release --verbosity normal
+
+      - name: Verify formatting
+        run: dotnet format Zava.SalesIntelligence.slnx --verify-no-changes --no-restore
