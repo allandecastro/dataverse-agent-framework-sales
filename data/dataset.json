@@ -1,0 +1,306 @@
+{
+  "meta": {
+    "description": "Phase 2 fixture. Dates are day offsets from seed time (negative = past). Keys map to deterministic GUIDs at seed. The expected block is the acceptance oracle and is NOT seeded to Dataverse.",
+    "currency": "USD",
+    "seller": {
+      "key": "seller-primary",
+      "fullName": "Morgan Reyes",
+      "note": "Bound to the primary test app user at seed time. Owns every account below."
+    },
+    "stages": ["Qualify", "Develop", "Propose", "Close"]
+  },
+  "accounts": [
+    {
+      "key": "ZAVA-001",
+      "name": "Fabrikam",
+      "industry": "Manufacturing",
+      "expected": {
+        "archetype": "Slipping",
+        "bant": { "budget": "Missing", "authority": "Partial", "need": "Confirmed", "timing": "Missing" },
+        "why": "Competitor Contoso named in a note 20 days ago, close date moved twice, and the engaged champion was deactivated. Any one triggers Slipping, which takes precedence over the Propose-stage AtRisk contradiction."
+      },
+      "contacts": [
+        { "key": "ct-001-dana", "fullName": "Dana Whitfield", "jobTitle": "VP Finance", "role": "economic buyer", "isActive": true, "addedOffsetDays": -210 },
+        { "key": "ct-001-marcus", "fullName": "Marcus Lund", "jobTitle": "Head of IT", "role": "champion", "isActive": false, "addedOffsetDays": -200 },
+        { "key": "ct-001-erin", "fullName": "Erin Vasquez", "jobTitle": "Procurement Analyst", "role": "user", "isActive": true, "addedOffsetDays": -180 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-001", "name": "Fabrikam ERP Platform Renewal", "amount": 480000, "stage": "Propose",
+          "closeDateOffsetDays": 10,
+          "closeDateHistory": [
+            { "changedOffsetDays": -45, "fromOffsetDays": 20, "toOffsetDays": 60 },
+            { "changedOffsetDays": -15, "fromOffsetDays": 60, "toOffsetDays": 10 }
+          ]
+        }
+      ],
+      "activities": [
+        { "key": "act-001-qbr", "type": "appointment", "subject": "Quarterly business review", "dateOffsetDays": -42, "contactKey": "ct-001-dana", "description": "Reviewed renewal scope with Dana. She flagged budget pressure but no decision reached." },
+        { "key": "act-001-ws", "type": "appointment", "subject": "Solution workshop", "dateOffsetDays": -20, "contactKey": "ct-001-erin", "description": "Technical walkthrough with procurement and two IT staff." },
+        { "key": "act-001-call", "type": "phonecall", "subject": "Follow up on IT requirements", "dateOffsetDays": -55, "contactKey": "ct-001-marcus", "description": "Marcus walked through integration needs before he left the account." }
+      ],
+      "notes": [
+        { "key": "note-001-ws", "regardingKey": "opp-001", "dateOffsetDays": -20, "subject": "Workshop recap", "body": "Client confirmed they are also evaluating Contoso for the renewal. Pricing pressure from Contoso was raised twice. No commitment on our proposal yet." },
+        { "key": "note-001-budget", "regardingKey": "opp-001", "dateOffsetDays": -18, "subject": "Budget update", "body": "Finance committee moved the budget decision to next quarter. Dana cannot approve before the committee reconvenes." },
+        { "key": "note-001-champion", "regardingKey": "ZAVA-001", "dateOffsetDays": -12, "subject": "Contact change", "body": "Marcus Lund has left Fabrikam. No replacement named on the IT side. He was our main sponsor for the renewal." }
+      ]
+    },
+    {
+      "key": "ZAVA-002",
+      "name": "Alpine Ski House",
+      "industry": "Retail",
+      "expected": {
+        "archetype": "ReadyToClose",
+        "bant": { "budget": "Confirmed", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
+        "why": "Small amount and early stage in the CRM, but budget is approved in writing, the COO is in a recent meeting, the need names two additional sites, and the customer owns a date. BANT 4 with rising activity."
+      },
+      "contacts": [
+        { "key": "ct-002-priya", "fullName": "Priya Nandakumar", "jobTitle": "Chief Operating Officer", "role": "economic buyer", "isActive": true, "addedOffsetDays": -22 },
+        { "key": "ct-002-tom", "fullName": "Tom Aldridge", "jobTitle": "Operations Manager", "role": "champion", "isActive": true, "addedOffsetDays": -70 },
+        { "key": "ct-002-sara", "fullName": "Sara Kim", "jobTitle": "Site Lead, Boulder", "role": "user", "isActive": true, "addedOffsetDays": -18 },
+        { "key": "ct-002-noah", "fullName": "Noah Bright", "jobTitle": "Site Lead, Reno", "role": "user", "isActive": true, "addedOffsetDays": -14 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-002", "name": "Alpine Ski House Pilot Expansion", "amount": 45000, "stage": "Develop",
+          "closeDateOffsetDays": 25,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-002-intro", "type": "phonecall", "subject": "Pilot check in", "dateOffsetDays": -58, "contactKey": "ct-002-tom", "description": "Pilot going well at the first site." },
+        { "key": "act-002-review", "type": "email", "subject": "Pilot results summary", "dateOffsetDays": -40, "contactKey": "ct-002-tom", "description": "Shared usage numbers from the pilot." },
+        { "key": "act-002-coo", "type": "appointment", "subject": "Expansion planning with COO", "dateOffsetDays": -8, "contactKey": "ct-002-priya", "description": "Priya joined to plan the multi-site rollout." },
+        { "key": "act-002-sara", "type": "phonecall", "subject": "Boulder onboarding prep", "dateOffsetDays": -6, "contactKey": "ct-002-sara", "description": "Walked Sara through onboarding steps." },
+        { "key": "act-002-noah", "type": "phonecall", "subject": "Reno onboarding prep", "dateOffsetDays": -4, "contactKey": "ct-002-noah", "description": "Walked Noah through onboarding steps." },
+        { "key": "act-002-paper", "type": "email", "subject": "Order paperwork request", "dateOffsetDays": -3, "contactKey": "ct-002-priya", "description": "Priya asked for the order paperwork." }
+      ],
+      "notes": [
+        { "key": "note-002-scope", "regardingKey": "opp-002", "dateOffsetDays": -12, "subject": "Expansion scope", "body": "Priya confirmed budget of 45k approved for phase one and wants two additional sites, Boulder and Reno, live before the winter season." },
+        { "key": "note-002-next", "regardingKey": "opp-002", "dateOffsetDays": -5, "subject": "Next steps", "body": "COO asked for order paperwork. She is targeting signature within three weeks so both sites are ready for peak." }
+      ]
+    },
+    {
+      "key": "ZAVA-003",
+      "name": "Northwind Traders",
+      "industry": "Logistics",
+      "expected": {
+        "archetype": "Reconnect",
+        "bant": { "budget": "Confirmed", "authority": "Confirmed", "need": "Confirmed", "timing": "Missing" },
+        "why": "BANT 3 with the CFO engaged and a documented, quantified need, but no activity in the last 38 days. Well qualified and going quiet."
+      },
+      "contacts": [
+        { "key": "ct-003-elena", "fullName": "Elena Marsh", "jobTitle": "Chief Financial Officer", "role": "economic buyer", "isActive": true, "addedOffsetDays": -120 },
+        { "key": "ct-003-raj", "fullName": "Raj Patel", "jobTitle": "Logistics Director", "role": "champion", "isActive": true, "addedOffsetDays": -110 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-003", "name": "Northwind Logistics Suite", "amount": 160000, "stage": "Develop",
+          "closeDateOffsetDays": 50,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-003-req", "type": "appointment", "subject": "Requirements review", "dateOffsetDays": -38, "contactKey": "ct-003-elena", "description": "Elena and Raj walked through the automation requirements." },
+        { "key": "act-003-call", "type": "phonecall", "subject": "Scoping call", "dateOffsetDays": -52, "contactKey": "ct-003-raj", "description": "Initial scoping of the logistics suite." },
+        { "key": "act-003-email", "type": "email", "subject": "Intro and materials", "dateOffsetDays": -70, "contactKey": "ct-003-raj", "description": "Shared overview materials." }
+      ],
+      "notes": [
+        { "key": "note-003-req", "regardingKey": "opp-003", "dateOffsetDays": -38, "subject": "Requirements", "body": "Elena confirmed a 150k to 180k budget range approved for logistics automation. Their current manual process costs about 12 hours per week across the team." }
+      ]
+    },
+    {
+      "key": "ZAVA-004",
+      "name": "Tailspin Toys",
+      "industry": "Consumer Goods",
+      "expected": {
+        "archetype": "AtRisk",
+        "bant": { "budget": "Missing", "authority": "Missing", "need": "Partial", "timing": "Missing" },
+        "why": "Stage is Propose but only operational contacts are engaged, no budget and no sponsor. BANT 2 or less at Propose with no competitor lands on AtRisk."
+      },
+      "contacts": [
+        { "key": "ct-004-sam", "fullName": "Sam Ortiz", "jobTitle": "Web Manager", "role": "user", "isActive": true, "addedOffsetDays": -60 },
+        { "key": "ct-004-lee", "fullName": "Lee Chan", "jobTitle": "Front End Developer", "role": "user", "isActive": true, "addedOffsetDays": -55 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-004", "name": "Tailspin Commerce Replatform", "amount": 220000, "stage": "Propose",
+          "closeDateOffsetDays": 18,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-004-demo", "type": "appointment", "subject": "Platform demo", "dateOffsetDays": -10, "contactKey": "ct-004-sam", "description": "Demoed the platform to the web team." },
+        { "key": "act-004-follow", "type": "email", "subject": "Demo follow up", "dateOffsetDays": -8, "contactKey": "ct-004-sam", "description": "Sent recap and asked about next steps." }
+      ],
+      "notes": [
+        { "key": "note-004-demo", "regardingKey": "opp-004", "dateOffsetDays": -9, "subject": "Demo recap", "body": "Team liked the demo. No budget confirmed and no executive sponsor identified yet. Sam is a user, not a buyer." }
+      ]
+    },
+    {
+      "key": "ZAVA-005",
+      "name": "Fourth Coffee",
+      "industry": "Hospitality",
+      "expected": {
+        "archetype": "InsufficientSignal",
+        "bant": { "budget": "Missing", "authority": "Missing", "need": "Missing", "timing": "Missing" },
+        "why": "One intro email and a single contact. Fewer than two axes documented. The model must refuse to conclude."
+      },
+      "contacts": [
+        { "key": "ct-005-chris", "fullName": "Chris Bell", "jobTitle": "Owner", "role": "unknown", "isActive": true, "addedOffsetDays": -30 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-005", "name": "Fourth Coffee POS Upgrade", "amount": 30000, "stage": "Qualify",
+          "closeDateOffsetDays": 40,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-005-intro", "type": "email", "subject": "Intro and scheduling", "dateOffsetDays": -25, "contactKey": "ct-005-chris", "description": "Reached out to schedule a first call. No reply yet." }
+      ],
+      "notes": []
+    },
+    {
+      "key": "ZAVA-006",
+      "name": "Proseware",
+      "industry": "Software",
+      "expected": {
+        "archetype": "InsufficientSignal",
+        "bant": { "budget": "Missing", "authority": "Missing", "need": "Partial", "timing": "Missing" },
+        "why": "A single operational contact and a vague trial interest. Only one axis is even partially documented. The model must refuse to conclude."
+      },
+      "contacts": [
+        { "key": "ct-006-pat", "fullName": "Pat Nguyen", "jobTitle": "Data Analyst", "role": "user", "isActive": true, "addedOffsetDays": -20 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-006", "name": "Proseware Analytics Trial", "amount": 75000, "stage": "Qualify",
+          "closeDateOffsetDays": 35,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-006-trial", "type": "email", "subject": "Trial access", "dateOffsetDays": -15, "contactKey": "ct-006-pat", "description": "Sent trial credentials to Pat." }
+      ],
+      "notes": [
+        { "key": "note-006-trial", "regardingKey": "opp-006", "dateOffsetDays": -14, "subject": "Trial note", "body": "Pat is exploring the trial. No stated goal, budget or timeline." }
+      ]
+    },
+    {
+      "key": "ZAVA-007",
+      "name": "Adventure Works",
+      "industry": "Field Services",
+      "expected": {
+        "archetype": "ReadyToClose",
+        "bant": { "budget": "Confirmed", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
+        "why": "Neutral, not an inversion. The CRM already shows a strong Propose-stage deal and the evidence agrees: BANT 4 with rising recent activity."
+      },
+      "contacts": [
+        { "key": "ct-007-nadia", "fullName": "Nadia Haas", "jobTitle": "VP Operations", "role": "economic buyer", "isActive": true, "addedOffsetDays": -90 },
+        { "key": "ct-007-ben", "fullName": "Ben Oduya", "jobTitle": "Service Delivery Lead", "role": "champion", "isActive": true, "addedOffsetDays": -85 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-007", "name": "Adventure Works Field Service Rollout", "amount": 310000, "stage": "Propose",
+          "closeDateOffsetDays": 14,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-007-review", "type": "appointment", "subject": "Rollout planning", "dateOffsetDays": -12, "contactKey": "ct-007-nadia", "description": "Nadia confirmed rollout plan and sequencing." },
+        { "key": "act-007-call", "type": "phonecall", "subject": "Contract terms", "dateOffsetDays": -6, "contactKey": "ct-007-nadia", "description": "Reviewed terms, no blockers." },
+        { "key": "act-007-final", "type": "appointment", "subject": "Final review", "dateOffsetDays": -3, "contactKey": "ct-007-ben", "description": "Ben confirmed technical readiness." }
+      ],
+      "notes": [
+        { "key": "note-007-plan", "regardingKey": "opp-007", "dateOffsetDays": -12, "subject": "Rollout", "body": "Nadia approved the 310k budget and wants the rollout complete before the fiscal year end in six weeks. Goal is to cut dispatch time by 30 percent." }
+      ]
+    },
+    {
+      "key": "ZAVA-008",
+      "name": "Wingtip Toys",
+      "industry": "Retail",
+      "expected": {
+        "archetype": "Reconnect",
+        "bant": { "budget": "Confirmed", "authority": "Partial", "need": "Confirmed", "timing": "Missing" },
+        "why": "Neutral. BANT 3 with a documented need and approved budget, but the last activity was 34 days ago. Going quiet."
+      },
+      "contacts": [
+        { "key": "ct-008-mia", "fullName": "Mia Fontaine", "jobTitle": "Marketing Director", "role": "champion", "isActive": true, "addedOffsetDays": -100 },
+        { "key": "ct-008-carl", "fullName": "Carl Reed", "jobTitle": "Finance Manager", "role": "economic buyer", "isActive": true, "addedOffsetDays": -95 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-008", "name": "Wingtip Loyalty Program", "amount": 90000, "stage": "Develop",
+          "closeDateOffsetDays": 60,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-008-plan", "type": "appointment", "subject": "Program design", "dateOffsetDays": -34, "contactKey": "ct-008-mia", "description": "Designed the loyalty program structure with Mia." },
+        { "key": "act-008-call", "type": "phonecall", "subject": "Budget confirmation", "dateOffsetDays": -48, "contactKey": "ct-008-carl", "description": "Carl confirmed the budget line." }
+      ],
+      "notes": [
+        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia wants to lift repeat purchase rate, currently at 18 percent. Carl confirmed 90k is approved for the program this year." }
+      ]
+    },
+    {
+      "key": "ZAVA-009",
+      "name": "Litware",
+      "industry": "Technology",
+      "expected": {
+        "archetype": "ReadyToClose",
+        "bant": { "budget": "Partial", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
+        "why": "Neutral. BANT 3 with Timing confirmed and activity rising in the last 30 days, which meets the ReadyToClose rule without a full BANT 4."
+      },
+      "contacts": [
+        { "key": "ct-009-omar", "fullName": "Omar Said", "jobTitle": "Head of Data", "role": "economic buyer", "isActive": true, "addedOffsetDays": -75 },
+        { "key": "ct-009-june", "fullName": "June Park", "jobTitle": "Data Engineer", "role": "user", "isActive": true, "addedOffsetDays": -70 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-009", "name": "Litware Data Platform", "amount": 140000, "stage": "Propose",
+          "closeDateOffsetDays": 21,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-009-old", "type": "email", "subject": "Proposal sent", "dateOffsetDays": -33, "contactKey": "ct-009-omar", "description": "Sent the proposal for review." },
+        { "key": "act-009-mid", "type": "phonecall", "subject": "Proposal questions", "dateOffsetDays": -12, "contactKey": "ct-009-omar", "description": "Omar raised a few clarifying questions." },
+        { "key": "act-009-recent", "type": "appointment", "subject": "Commercials review", "dateOffsetDays": -5, "contactKey": "ct-009-omar", "description": "Reviewed commercials, close alignment." },
+        { "key": "act-009-tech", "type": "phonecall", "subject": "Migration plan", "dateOffsetDays": -2, "contactKey": "ct-009-june", "description": "June walked through the migration plan." }
+      ],
+      "notes": [
+        { "key": "note-009-timing", "regardingKey": "opp-009", "dateOffsetDays": -5, "subject": "Timing", "body": "Omar needs the platform live before their board review at the end of next month. He is pushing to finalise commercials this month." }
+      ]
+    },
+    {
+      "key": "ZAVA-010",
+      "name": "Wide World Importers",
+      "industry": "Distribution",
+      "expected": {
+        "archetype": "AtRisk",
+        "bant": { "budget": "Partial", "authority": "Missing", "need": "Partial", "timing": "Missing" },
+        "why": "Neutral. Stage is Propose but no decision maker is engaged and the need is generic. BANT 2 at Propose with no competitor lands on AtRisk."
+      },
+      "contacts": [
+        { "key": "ct-010-gina", "fullName": "Gina Holt", "jobTitle": "Warehouse Supervisor", "role": "user", "isActive": true, "addedOffsetDays": -65 },
+        { "key": "ct-010-devon", "fullName": "Devon Price", "jobTitle": "IT Coordinator", "role": "user", "isActive": true, "addedOffsetDays": -60 }
+      ],
+      "opportunities": [
+        {
+          "key": "opp-010", "name": "WWI Warehouse Automation", "amount": 175000, "stage": "Propose",
+          "closeDateOffsetDays": 16,
+          "closeDateHistory": []
+        }
+      ],
+      "activities": [
+        { "key": "act-010-demo", "type": "appointment", "subject": "Automation demo", "dateOffsetDays": -14, "contactKey": "ct-010-gina", "description": "Showed the automation workflow to the warehouse team." },
+        { "key": "act-010-call", "type": "phonecall", "subject": "Technical questions", "dateOffsetDays": -9, "contactKey": "ct-010-devon", "description": "Devon asked integration questions." }
+      ],
+      "notes": [
+        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Warehouse team is interested but there is no named budget owner and no decision date. Rough interest in reducing picking errors, no target figure given." }
+      ]
+    }
+  ]
+}
