@@ -1,0 +1,35 @@
+<Project>
+
+  <!-- Central Package Management: every version is pinned here, nowhere else.
+       Add packages with `dotnet add package`, which writes the PackageVersion below
+       and a versionless PackageReference in the csproj. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup Label="Microsoft Agent Framework">
+    <PackageVersion Include="Microsoft.Agents.AI" Version="1.17.0" />
+    <PackageVersion Include="Microsoft.Agents.AI.OpenAI" Version="1.17.0" />
+    <PackageVersion Include="Microsoft.Agents.AI.Workflows" Version="1.17.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Dataverse and identity">
+    <PackageVersion Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.2.26" />
+    <PackageVersion Include="Azure.Identity" Version="1.21.0" />
+  </ItemGroup>
+
+  <!-- Transitive security pins. The Dataverse client pulls a vulnerable 8.0.2 (NU1903);
+       transitive pinning forces the patched build. Revisit when the client updates. -->
+  <ItemGroup Label="Transitive security pins">
+    <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.11" />
+  </ItemGroup>
+
+  <ItemGroup Label="Testing">
+    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+</Project>

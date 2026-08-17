@@ -1,0 +1,27 @@
+<Project>
+
+  <!-- Shared build settings for every project. Target framework lives here so the
+       whole solution moves in one line. See CLAUDE.md for the .NET version rationale. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <!-- Quality gates. Analyzers and code style run at build so the public repo cannot
+       drift from the conventions in CLAUDE.md (file-scoped namespaces, and so on).
+       Nullable warnings are promoted to errors. Deliberately short of a blanket
+       TreatWarningsAsErrors so the preview AG-UI/DevUI packages added later do not
+       break the build with their own warnings. -->
+  <PropertyGroup>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <!-- Required for IDE0005 (unused usings) to run at build. CS1591 is suppressed
+         so we get that check without forcing XML doc comments on every public member. -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+</Project>

@@ -1,0 +1,60 @@
+# EditorConfig for Zava Sales Intelligence. Enforces the conventions in CLAUDE.md
+# mechanically. Runs at build via EnforceCodeStyleInBuild in Directory.Build.props.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+
+[*.{cs,csx}]
+indent_size = 4
+
+[*.{csproj,props,targets,config,xml}]
+indent_size = 2
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+[*.ps1]
+end_of_line = crlf
+indent_size = 4
+
+[*.cs]
+# File-scoped namespaces are required (CLAUDE.md).
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Language keywords over framework type names (int, not Int32).
+dotnet_style_predefined_type_for_locals_parameters_members = true:warning
+dotnet_style_predefined_type_for_member_access = true:warning
+
+# this. is noise.
+dotnet_style_qualification_for_field = false:warning
+dotnet_style_qualification_for_property = false:warning
+dotnet_style_qualification_for_method = false:warning
+dotnet_style_qualification_for_event = false:warning
+
+# Modern expression styles that keep the demo code terse and readable.
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_prefer_braces = true:suggestion
+csharp_using_directive_placement = outside_namespace:warning
+dotnet_sort_system_directives_first = true
+
+# Nullability and immutability, aligned with records-for-contracts.
+dotnet_style_readonly_field = true:warning
+csharp_prefer_simple_using_statement = true:suggestion
+
+# Unused usings and members are errors so the public repo stays tidy.
+dotnet_diagnostic.IDE0005.severity = warning
+
+# Test method names use Method_Scenario_Expectation with underscores. That is the
+# xUnit convention and reads better than the alternative, so CA1707 is off for tests.
+[tests/**/*.cs]
+dotnet_diagnostic.CA1707.severity = none
