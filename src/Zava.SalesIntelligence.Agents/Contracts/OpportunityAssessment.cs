@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Zava.SalesIntelligence.Agents.Contracts;
 
 public record OpportunityAssessment(
@@ -17,6 +19,7 @@ public record BantAssessment(
     BantCriterion Need,
     BantCriterion Timing)
 {
+    [JsonIgnore]
     public int Score => new[] { Budget, Authority, Need, Timing }
         .Count(c => c.Status == BantStatus.Confirmed);
 }
