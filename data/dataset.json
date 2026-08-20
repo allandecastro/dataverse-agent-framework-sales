@@ -106,7 +106,7 @@
         { "key": "act-003-email", "type": "email", "subject": "Intro and materials", "dateOffsetDays": -70, "contactKey": "ct-003-raj", "description": "Shared overview materials." }
       ],
       "notes": [
-        { "key": "note-003-req", "regardingKey": "opp-003", "dateOffsetDays": -38, "subject": "Requirements", "body": "Elena confirmed a 150k to 180k budget range approved for logistics automation. Their current manual process costs about 12 hours per week across the team." }
+        { "key": "note-003-req", "regardingKey": "opp-003", "dateOffsetDays": -38, "subject": "Requirements", "body": "Elena confirmed the board approved a firm 165k budget for logistics automation. Their current manual process costs about 12 hours per week across the team." }
       ]
     },
     {
@@ -250,8 +250,8 @@
       "industry": "Technology",
       "expected": {
         "archetype": "ReadyToClose",
-        "bant": { "budget": "Partial", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
-        "why": "Neutral. BANT 3 with Timing confirmed and activity rising in the last 30 days, which meets the ReadyToClose rule without a full BANT 4."
+        "bant": { "budget": "Missing", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
+        "why": "Neutral. Authority, Need and Timing are confirmed (BANT 3 with Timing confirmed) and recent activity is rising, which meets the ReadyToClose rule without a full BANT 4."
       },
       "contacts": [
         { "key": "ct-009-omar", "fullName": "Omar Said", "jobTitle": "Head of Data", "role": "economic buyer", "isActive": true, "addedOffsetDays": -75 },
@@ -271,6 +271,7 @@
         { "key": "act-009-tech", "type": "phonecall", "subject": "Migration plan", "dateOffsetDays": -2, "contactKey": "ct-009-june", "description": "June walked through the migration plan." }
       ],
       "notes": [
+        { "key": "note-009-need", "regardingKey": "opp-009", "dateOffsetDays": -20, "subject": "Discovery", "body": "Omar owns this decision. Their pipeline breaks weekly and costs the data team about 10 hours each week in manual reprocessing." },
         { "key": "note-009-timing", "regardingKey": "opp-009", "dateOffsetDays": -5, "subject": "Timing", "body": "Omar needs the platform live before their board review at the end of next month. He is pushing to finalise commercials this month." }
       ]
     },
