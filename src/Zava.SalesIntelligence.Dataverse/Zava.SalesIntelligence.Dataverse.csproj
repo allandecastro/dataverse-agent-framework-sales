@@ -4,4 +4,7 @@
     <PackageReference Include="Microsoft.Extensions.AI" />
     <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Zava.SalesIntelligence.Agents\Zava.SalesIntelligence.Agents.csproj" />
+  </ItemGroup>
 </Project>
