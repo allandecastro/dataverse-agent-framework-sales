@@ -54,6 +54,10 @@ csharp_prefer_simple_using_statement = true:suggestion
 # Unused usings and members are errors so the public repo stays tidy.
 dotnet_diagnostic.IDE0005.severity = warning
 
+# The three agents are the Watcher, the Thinker and the Operator. That vocabulary is
+# the point of the demo, so keep the Operator type name even though it is a VB keyword.
+dotnet_diagnostic.CA1716.severity = none
+
 # Test method names use Method_Scenario_Expectation with underscores. That is the
 # xUnit convention and reads better than the alternative, so CA1707 is off for tests.
 [tests/**/*.cs]
