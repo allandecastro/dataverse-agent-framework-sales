@@ -280,8 +280,8 @@
       "industry": "Distribution",
       "expected": {
         "archetype": "AtRisk",
-        "bant": { "budget": "Partial", "authority": "Missing", "need": "Partial", "timing": "Missing" },
-        "why": "Neutral. Stage is Propose but no decision maker is engaged and the need is generic. BANT 2 at Propose with no competitor lands on AtRisk."
+        "bant": { "budget": "Partial", "authority": "Missing", "need": "Confirmed", "timing": "Missing" },
+        "why": "Neutral. Need and budget are documented so it is not InsufficientSignal, but no decision maker is engaged and BANT stays at 1. Stage Propose with no competitor lands on AtRisk."
       },
       "contacts": [
         { "key": "ct-010-gina", "fullName": "Gina Holt", "jobTitle": "Warehouse Supervisor", "role": "user", "isActive": true, "addedOffsetDays": -65 },
@@ -299,7 +299,7 @@
         { "key": "act-010-call", "type": "phonecall", "subject": "Technical questions", "dateOffsetDays": -9, "contactKey": "ct-010-devon", "description": "Devon asked integration questions." }
       ],
       "notes": [
-        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Warehouse team is interested but there is no named budget owner and no decision date. Rough interest in reducing picking errors, no target figure given." }
+        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Picking errors run about 4 percent and cost roughly 40k a quarter in reshipments. A ballpark of 150k was floated, but no budget owner is named and there is no decision date." }
       ]
     }
   ]
