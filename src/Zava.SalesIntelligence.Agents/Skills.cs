@@ -6,9 +6,11 @@ static class Skills
 {
     public static string Load(string skill, string file)
     {
+        // MSBuild turns the hyphen in a folder name into an underscore in the resource name.
+        var token = $".{skill.Replace('-', '_')}.";
         var assembly = typeof(Skills).Assembly;
         var name = assembly.GetManifestResourceNames().Single(resource =>
-            resource.Contains($".{skill}.", StringComparison.OrdinalIgnoreCase)
+            resource.Contains(token, StringComparison.OrdinalIgnoreCase)
             && resource.EndsWith(file, StringComparison.OrdinalIgnoreCase));
 
         using var stream = assembly.GetManifestResourceStream(name)!;
