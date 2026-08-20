@@ -85,9 +85,9 @@
       "name": "Northwind Traders",
       "industry": "Logistics",
       "expected": {
-        "archetype": "Reconnect",
+        "archetype": "Slipping",
         "bant": { "budget": "Confirmed", "authority": "Confirmed", "need": "Confirmed", "timing": "Missing" },
-        "why": "BANT 3 with the CFO engaged and a documented, quantified need, but no activity in the last 38 days. Well qualified and going quiet."
+        "why": "Well qualified (BANT 3), but a competitor is named within 60 days and the engaged CFO has gone quiet, so precedence makes this Slipping rather than Reconnect."
       },
       "contacts": [
         { "key": "ct-003-elena", "fullName": "Elena Marsh", "jobTitle": "Chief Financial Officer", "role": "economic buyer", "isActive": true, "addedOffsetDays": -120 },
@@ -106,7 +106,8 @@
         { "key": "act-003-email", "type": "email", "subject": "Intro and materials", "dateOffsetDays": -70, "contactKey": "ct-003-raj", "description": "Shared overview materials." }
       ],
       "notes": [
-        { "key": "note-003-req", "regardingKey": "opp-003", "dateOffsetDays": -38, "subject": "Requirements", "body": "Elena confirmed a 150k to 180k budget range approved for logistics automation. Their current manual process costs about 12 hours per week across the team." }
+        { "key": "note-003-req", "regardingKey": "opp-003", "dateOffsetDays": -38, "subject": "Requirements", "body": "Elena confirmed the board approved a firm 165k budget for logistics automation. Their current manual process costs about 12 hours per week across the team." },
+        { "key": "note-003-comp", "regardingKey": "opp-003", "dateOffsetDays": -22, "subject": "Competitive note", "body": "Elena said they are now also evaluating Contoso for the logistics automation, and pricing will weigh on the decision." }
       ]
     },
     {
@@ -167,8 +168,8 @@
       "industry": "Software",
       "expected": {
         "archetype": "InsufficientSignal",
-        "bant": { "budget": "Missing", "authority": "Missing", "need": "Partial", "timing": "Missing" },
-        "why": "A single operational contact and a vague trial interest. Only one axis is even partially documented. The model must refuse to conclude."
+        "bant": { "budget": "Missing", "authority": "Missing", "need": "Missing", "timing": "Missing" },
+        "why": "A single operational contact and a trial handout, no note. No axis is documented. The model must refuse to conclude."
       },
       "contacts": [
         { "key": "ct-006-pat", "fullName": "Pat Nguyen", "jobTitle": "Data Analyst", "role": "user", "isActive": true, "addedOffsetDays": -20 }
@@ -183,9 +184,7 @@
       "activities": [
         { "key": "act-006-trial", "type": "email", "subject": "Trial access", "dateOffsetDays": -15, "contactKey": "ct-006-pat", "description": "Sent trial credentials to Pat." }
       ],
-      "notes": [
-        { "key": "note-006-trial", "regardingKey": "opp-006", "dateOffsetDays": -14, "subject": "Trial note", "body": "Pat is exploring the trial. No stated goal, budget or timeline." }
-      ]
+      "notes": []
     },
     {
       "key": "ZAVA-007",
@@ -250,8 +249,8 @@
       "industry": "Technology",
       "expected": {
         "archetype": "ReadyToClose",
-        "bant": { "budget": "Partial", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
-        "why": "Neutral. BANT 3 with Timing confirmed and activity rising in the last 30 days, which meets the ReadyToClose rule without a full BANT 4."
+        "bant": { "budget": "Missing", "authority": "Confirmed", "need": "Confirmed", "timing": "Confirmed" },
+        "why": "Neutral. Authority, Need and Timing are confirmed (BANT 3 with Timing confirmed) and recent activity is rising, which meets the ReadyToClose rule without a full BANT 4."
       },
       "contacts": [
         { "key": "ct-009-omar", "fullName": "Omar Said", "jobTitle": "Head of Data", "role": "economic buyer", "isActive": true, "addedOffsetDays": -75 },
@@ -271,6 +270,7 @@
         { "key": "act-009-tech", "type": "phonecall", "subject": "Migration plan", "dateOffsetDays": -2, "contactKey": "ct-009-june", "description": "June walked through the migration plan." }
       ],
       "notes": [
+        { "key": "note-009-need", "regardingKey": "opp-009", "dateOffsetDays": -20, "subject": "Discovery", "body": "Omar owns this decision. Their pipeline breaks weekly and costs the data team about 10 hours each week in manual reprocessing." },
         { "key": "note-009-timing", "regardingKey": "opp-009", "dateOffsetDays": -5, "subject": "Timing", "body": "Omar needs the platform live before their board review at the end of next month. He is pushing to finalise commercials this month." }
       ]
     },
@@ -280,8 +280,8 @@
       "industry": "Distribution",
       "expected": {
         "archetype": "AtRisk",
-        "bant": { "budget": "Partial", "authority": "Missing", "need": "Partial", "timing": "Missing" },
-        "why": "Neutral. Stage is Propose but no decision maker is engaged and the need is generic. BANT 2 at Propose with no competitor lands on AtRisk."
+        "bant": { "budget": "Partial", "authority": "Missing", "need": "Confirmed", "timing": "Missing" },
+        "why": "Neutral. Need and budget are documented so it is not InsufficientSignal, but no decision maker is engaged and BANT stays at 1. Stage Propose with no competitor lands on AtRisk."
       },
       "contacts": [
         { "key": "ct-010-gina", "fullName": "Gina Holt", "jobTitle": "Warehouse Supervisor", "role": "user", "isActive": true, "addedOffsetDays": -65 },
@@ -299,7 +299,7 @@
         { "key": "act-010-call", "type": "phonecall", "subject": "Technical questions", "dateOffsetDays": -9, "contactKey": "ct-010-devon", "description": "Devon asked integration questions." }
       ],
       "notes": [
-        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Warehouse team is interested but there is no named budget owner and no decision date. Rough interest in reducing picking errors, no target figure given." }
+        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Picking errors run about 4 percent and cost roughly 40k a quarter in reshipments. A ballpark of 150k was floated, but no budget owner is named and there is no decision date." }
       ]
     }
   ]
