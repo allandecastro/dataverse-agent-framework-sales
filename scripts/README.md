@@ -26,7 +26,17 @@ derive the archetype, never read it.
 
 ## provision.ps1
 
-Not written yet. It will create the Entra app registrations, the Dataverse
-application users, the two custom security roles and the Azure OpenAI
-deployments, per section 2 of `docs/build-brief.md`. It needs authentication
-that stays with Allan, so it lands alongside phase 4.
+Creates the two agent identities and their least-privilege security roles for the
+phase 4 identity boundary: the `zava-watcher` and `zava-operator` app registrations
+(with client secrets), their Dataverse application users, and the `Zava Agent Reader`
+and `Zava Agent Writer` roles.
+
+```pwsh
+./scripts/provision.ps1 -EnvironmentUrl https://org.crm.dynamics.com
+```
+
+Run by Allan, with tenant admin. Validate the role scopes at the top of the script
+first. It prints client ids and secrets to store in user secrets (`ZAVA_TENANT_ID`,
+`ZAVA_READER_CLIENT_ID`/`SECRET`, `ZAVA_WRITER_CLIENT_ID`/`SECRET`) - never commit them.
+See `docs/identity.md`. Restricting the writer to the opportunity stage and close-date
+fields needs a Field Security Profile, configured in the maker portal.
