@@ -480,3 +480,6 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local agent identity secrets written by provisioning - never commit
+scripts/zava.env

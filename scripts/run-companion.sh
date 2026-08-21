@@ -11,5 +11,11 @@ export ZAVA_OPENAI_ENDPOINT="https://aif-zava-salesintel.openai.azure.com/"
 export ZAVA_OPENAI_DEPLOYMENT="gpt-5.4-mini"
 export ZAVA_OPENAI_REASONING_DEPLOYMENT="gpt-5.6-sol"
 
+# Identity comes from `az login` (interactive fallback). The provisioned reader/writer app
+# users exist and are validated (see scripts/zava.env, git-ignored), but the Watcher filters
+# accounts by ownerid = calling user, and the demo data is owned by the signed-in seller - so
+# retrieval under the reader app user returns nothing until the data ownership / act-on-behalf
+# question is decided. Set ZAVA_WRITER_* only, or source zava.env, once that is resolved.
+
 cd "$(dirname "$0")/.."
 exec dotnet run --project src/Zava.SalesIntelligence.Companion/Zava.SalesIntelligence.Companion.csproj

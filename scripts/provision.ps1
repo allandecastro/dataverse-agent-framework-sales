@@ -66,9 +66,15 @@ $ReaderPrivileges = @(
     @{ Name = 'prvReadContact';         Depth = 'Global' }
 )
 $WriterPrivileges = @(
-    @{ Name = 'prvCreateTask';          Depth = 'Global' }
-    @{ Name = 'prvCreateAppointment';   Depth = 'Global' }
-    @{ Name = 'prvWriteOpportunity';    Depth = 'Global' }  # field scope below
+    # Task and appointment are activity entities. Dataverse governs them with the generic
+    # Activity privileges, not per-type prvCreateTask/prvCreateAppointment (those do not
+    # exist). Create plus Append lets the writer create an activity and attach it to the
+    # opportunity it regards.
+    @{ Name = 'prvCreateActivity';      Depth = 'Global' }
+    @{ Name = 'prvReadActivity';        Depth = 'Global' }  # create runs a read-privilege check for the owner
+    @{ Name = 'prvAppendActivity';      Depth = 'Global' }
+    @{ Name = 'prvAppendToOpportunity'; Depth = 'Global' }  # attach the activity to the opportunity
+    @{ Name = 'prvWriteOpportunity';    Depth = 'Global' }  # update stage and close date; field scope below
     @{ Name = 'prvReadOpportunity';     Depth = 'Global' }  # needed to update
 )
 
@@ -122,8 +128,20 @@ foreach ($agent in $Agents) {
     if (-not $appId) {
         $appId = az ad app create --display-name $agent.App --sign-in-audience AzureADMyOrg --query appId -o tsv
         Write-Host "  created app registration, appId $appId"
+        Start-Sleep -Seconds 10  # let the new registration replicate before the service principal
     }
     else { Write-Host "  app registration exists, appId $appId" }
+
+    # Service principal (enterprise application). Dataverse binds the application user to the
+    # service principal, so it must exist before step 2 - and az ad app create does not create
+    # it. Idempotent by appId, with a replication wait so Dataverse can resolve the app id.
+    $spId = az ad sp list --filter "appId eq '$appId'" --query "[0].id" -o tsv
+    if (-not $spId) {
+        az ad sp create --id $appId | Out-Null
+        Write-Host "  created service principal"
+        Start-Sleep -Seconds 20
+    }
+    else { Write-Host "  service principal exists" }
 
     # Client secret, printed for user secrets. Never commit it.
     $secret = az ad app credential reset --id $appId --display-name 'zava' --query password -o tsv
