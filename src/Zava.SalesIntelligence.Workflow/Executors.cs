@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Xrm.Sdk;
 using Zava.SalesIntelligence.Agents.Contracts;
 using Zava.SalesIntelligence.Dataverse;
 
@@ -123,18 +124,36 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
     }
 }
 
-// Operator, second move: turns each ranked assessment into up to three prepared actions
-// and yields the brief.
-[YieldsOutput(typeof(SalesBrief))]
+// Operator, second move: turns each ranked assessment into up to three prepared actions,
+// then sends them to the approval gate. Each action's target is set to the real
+// opportunity id so an approved action can be written. It does not write itself.
+[SendsMessage(typeof(ApprovalRequest))]
 internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pacing)
     : Executor<ChallengedBatch>("actions")
 {
     public override async ValueTask HandleAsync(ChallengedBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
-        var recommendations = await Task.WhenAll(
+        var prepared = await Task.WhenAll(
             message.Items.Select((judged, index) => PrepareAsync(judged, index + 1, cancellationToken)));
-        await context.YieldOutputAsync(new SalesBrief(recommendations), cancellationToken);
+
+        var recommendations = new List<RankedRecommendation>();
+        var proposals = new List<ActionProposal>();
+        var number = 1;
+        foreach (var (judged, recommendation) in message.Items.Zip(prepared))
+        {
+            recommendations.Add(recommendation);
+            var opportunityId = judged.Context.Opportunities.Count > 0
+                ? judged.Context.Opportunities[0].OpportunityId
+                : Guid.Empty;
+            foreach (var action in recommendation.Actions)
+            {
+                proposals.Add(new ActionProposal(
+                    number++, recommendation.Assessment.OpportunityName, action with { TargetRecordId = opportunityId }));
+            }
+        }
+
+        await context.SendMessageAsync(new ApprovalRequest(recommendations, proposals), cancellationToken);
     }
 
     async Task<RankedRecommendation> PrepareAsync(Judged judged, int rank, CancellationToken cancellationToken)
@@ -143,5 +162,51 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
         var plan = await StructuredAgent.RunAsync<OperatorPlan>(operatorAgent, json, cancellationToken);
         // The model may return no actions at all; treat that as an empty plan.
         return new RankedRecommendation(rank, judged.Assessment, plan.Actions ?? []);
+    }
+}
+
+// Execute: writes the approved actions. Creates (task, appointment) run under the current
+// identity now; opportunity updates (stage, close date) mutate the fixture and land under
+// the writer identity in phase 4, so they are approved here but applied there.
+[YieldsOutput(typeof(WriteReport))]
+internal sealed partial class ExecuteExecutor(WriterTools writer, TimeSpan pacing)
+    : Executor<ApprovalDecision>("execute")
+{
+    public override async ValueTask HandleAsync(ApprovalDecision message, IWorkflowContext context, CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(pacing, cancellationToken);
+
+        var lines = new List<string>();
+        foreach (var proposal in message.Approved)
+        {
+            lines.Add(await ExecuteAsync(proposal, cancellationToken));
+        }
+        if (message.Approved.Count == 0)
+        {
+            lines.Add("Nothing approved, nothing written.");
+        }
+
+        await context.YieldOutputAsync(new WriteReport(lines), cancellationToken);
+    }
+
+    async Task<string> ExecuteAsync(ActionProposal proposal, CancellationToken cancellationToken)
+    {
+        var action = proposal.Action;
+        var regarding = new EntityReference("opportunity", action.TargetRecordId);
+
+        switch (action.Type)
+        {
+            case ActionType.Task:
+                await writer.CreateTaskAsync(regarding, action.Title, action.Body, action.DueDate, cancellationToken);
+                return $"Wrote task '{action.Title}' on {proposal.OpportunityName}";
+
+            case ActionType.Appointment:
+                var start = action.DueDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+                await writer.CreateAppointmentAsync(regarding, action.Title, action.Body, start, cancellationToken);
+                return $"Wrote appointment '{action.Title}' on {proposal.OpportunityName}";
+
+            default:
+                return $"Approved {action.Type} on {proposal.OpportunityName} (applied under the writer identity in phase 4)";
+        }
     }
 }
