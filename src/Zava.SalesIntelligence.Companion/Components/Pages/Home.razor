@@ -7,53 +7,155 @@
 <PageTitle>Zava Sales Intelligence</PageTitle>
 
 <style>
-    .companion { font-family: 'Segoe UI', sans-serif; color: #1b1b1b; max-width: 1400px; margin: 0 auto; padding: 24px; }
-    .companion h1 { font-size: 34px; margin: 0 0 16px; }
-    .ask { font-size: 22px; padding: 16px 28px; border: 0; border-radius: 10px; background: #0b5cad; color: #fff; cursor: pointer; }
-    .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-top: 20px; }
-    .thread div { font-size: 18px; padding: 8px 12px; border-left: 4px solid #0b5cad; margin-bottom: 6px; background: #f2f6fb; }
-    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
-    .card { border-radius: 10px; padding: 12px; color: #fff; min-height: 120px; }
-    .card h3 { margin: 0 0 8px; font-size: 18px; }
-    .card .row { background: rgba(255,255,255,.18); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; cursor: pointer; font-size: 16px; }
-    .Slipping { background: #b3261e; } .AtRisk { background: #b26a00; }
-    .Reconnect { background: #55618a; } .ReadyToClose { background: #1e7d43; }
-    .panel { margin-top: 20px; padding: 16px; border: 2px solid #0b5cad; border-radius: 10px; }
-    .panel h2 { margin: 0 0 12px; font-size: 24px; }
-    .proposal { font-size: 17px; padding: 6px 0; }
-    .approve { font-size: 18px; padding: 10px 20px; border: 0; border-radius: 8px; margin-right: 10px; cursor: pointer; }
-    .approve.go { background: #1e7d43; color: #fff; } .approve.no { background: #6b6b6b; color: #fff; }
-    .evidence li { font-size: 16px; margin-bottom: 6px; }
-    .written { font-size: 18px; color: #1e7d43; }
+    :root {
+        --ink: #0f1622; --muted: #64708a; --faint: #93a0b8; --line: #e7ebf3; --card: #ffffff;
+        --blue: #1668d6; --blue-deep: #0d4fac;
+        --slip: #d64545; --risk: #d98a1a; --recon: #5b6bb5; --ready: #17a34a;
+        --shadow-sm: 0 1px 2px rgba(16,22,34,.05);
+        --shadow-md: 0 6px 20px rgba(16,22,34,.07), 0 1px 3px rgba(16,22,34,.05);
+        --shadow-lg: 0 18px 44px rgba(16,22,34,.12);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body { background: radial-gradient(1200px 700px at 78% -8%, #eaf1fd 0%, rgba(234,241,253,0) 60%), #f5f7fb;
+        min-height: 100vh; }
+    .app { font-family: 'Segoe UI', -apple-system, system-ui, sans-serif; color: var(--ink);
+        max-width: 1240px; margin: 0 auto; padding: 34px 28px 72px; -webkit-font-smoothing: antialiased; }
+
+    .head { display: flex; align-items: center; justify-content: space-between; gap: 24px;
+        padding-bottom: 22px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+    .head .brand { display: inline-flex; align-items: center; gap: 9px; font-size: 12px; letter-spacing: .16em;
+        text-transform: uppercase; color: var(--blue-deep); font-weight: 800; }
+    .head .brand::before { content: ""; width: 9px; height: 9px; border-radius: 3px;
+        background: linear-gradient(135deg, var(--blue), var(--recon)); box-shadow: 0 0 0 4px rgba(22,104,214,.12); }
+    .head h1 { font-size: 32px; letter-spacing: -.01em; margin: 8px 0 0; font-weight: 700; }
+    .run { font-size: 16px; font-weight: 650; padding: 13px 28px; border: 0; border-radius: 12px; color: #fff;
+        background: linear-gradient(180deg, var(--blue), var(--blue-deep)); cursor: pointer;
+        box-shadow: 0 6px 16px rgba(22,104,214,.32); transition: transform .1s ease, box-shadow .15s ease; }
+    .run:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(22,104,214,.4); }
+    .run:active { transform: translateY(0); }
+    .working { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 650; font-size: 15px; }
+    .spinner { width: 17px; height: 17px; border-radius: 50%; border: 2.5px solid rgba(22,104,214,.22);
+        border-top-color: var(--blue); animation: spin .7s linear infinite; }
+
+    .layout { display: grid; grid-template-columns: 330px 1fr; gap: 26px; align-items: start; }
+
+    .thread { display: flex; flex-direction: column; gap: 10px; }
+    .thread .lead { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint);
+        font-weight: 800; padding: 2px 2px 4px; }
+    .step { position: relative; display: flex; gap: 12px; align-items: flex-start; background: var(--card);
+        border: 1px solid var(--line); border-left: 3px solid var(--blue); border-radius: 12px;
+        padding: 12px 15px; font-size: 14.5px; line-height: 1.4; box-shadow: var(--shadow-sm);
+        animation: rise .34s cubic-bezier(.22,.61,.36,1) both; }
+    .step .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); margin-top: 6px; flex: 0 0 auto;
+        box-shadow: 0 0 0 4px rgba(22,104,214,.14); }
+    .step:last-child { border-left-color: var(--recon); }
+    .step:last-child .dot { background: var(--recon); box-shadow: 0 0 0 4px rgba(91,107,181,.16); }
+    .step.active { border-left-color: var(--faint); border-left-style: dashed; color: var(--muted); font-style: italic; }
+    .spinner.sm { width: 13px; height: 13px; border-width: 2px; margin-top: 3px; flex: 0 0 auto; }
+
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .col { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow-md); }
+    .col > header { color: #fff; padding: 13px 15px; font-weight: 700; font-size: 14.5px; letter-spacing: .01em;
+        display: flex; justify-content: space-between; align-items: center; }
+    .col .body { padding: 11px; display: flex; flex-direction: column; gap: 9px; min-height: 64px; }
+    .col.Slipping > header { background: linear-gradient(180deg, #e05656, var(--slip)); }
+    .col.AtRisk > header { background: linear-gradient(180deg, #e59a2c, var(--risk)); }
+    .col.Reconnect > header { background: linear-gradient(180deg, #6c7cc6, var(--recon)); }
+    .col.ReadyToClose > header { background: linear-gradient(180deg, #22b158, var(--ready)); }
+    .col .count { background: rgba(255,255,255,.28); border-radius: 999px; padding: 2px 10px; font-size: 13px; font-weight: 700; }
+    .col .empty { color: var(--faint); font-size: 13px; text-align: center; padding: 10px 0; }
+    .acct { display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
+        border: 1px solid var(--line); border-radius: 11px; padding: 11px 12px; font-size: 14.5px; font-weight: 650;
+        transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease; }
+    .acct:hover { border-color: var(--blue); box-shadow: 0 4px 12px rgba(22,104,214,.14); transform: translateY(-1px); }
+    .acct .bant { font-size: 11.5px; font-weight: 800; color: #fff; border-radius: 999px; padding: 3px 9px;
+        letter-spacing: .02em; background: var(--faint); }
+    .acct .bant.b4 { background: var(--ready); } .acct .bant.b3 { background: #3f9d8b; }
+    .acct .bant.b2 { background: var(--risk); } .acct .bant.b1 { background: var(--slip); }
+
+    .panel { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 24px 26px;
+        margin-top: 24px; box-shadow: var(--shadow-lg); animation: rise .32s cubic-bezier(.22,.61,.36,1) both; }
+    .panel h2 { margin: 0 0 6px; font-size: 22px; letter-spacing: -.01em; }
+    .panel .sub { color: var(--muted); margin: 0 0 18px; font-size: 15px; }
+    .axis { padding: 13px 0; border-top: 1px solid var(--line); font-size: 15px; line-height: 1.5; }
+    .axis .name { font-weight: 700; margin-right: 8px; }
+    .axis .quote { color: var(--muted); font-style: italic; margin-top: 4px; }
+    .status { font-size: 11.5px; font-weight: 800; padding: 2px 9px; border-radius: 999px; color: #fff; letter-spacing: .02em; }
+    .Confirmed { background: var(--ready); } .Partial { background: var(--risk); } .Missing { background: var(--faint); }
+
+    .prop { display: flex; gap: 13px; align-items: flex-start; padding: 13px 0; border-top: 1px solid var(--line); font-size: 15.5px; }
+    .prop input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--blue); cursor: pointer; }
+    .prop .tag { display: inline-block; min-width: 92px; text-align: center; font-size: 11px; font-weight: 800; color: #fff;
+        border-radius: 6px; padding: 3px 8px; margin-right: 10px; text-transform: uppercase; letter-spacing: .04em; background: var(--muted); }
+    .prop .tag.Task { background: var(--blue); } .prop .tag.Appointment { background: var(--recon); }
+    .prop .tag.StageUpdate { background: var(--risk); } .prop .tag.CloseDateUpdate { background: #7a5bb5; }
+    .actions { display: flex; gap: 11px; margin-top: 20px; flex-wrap: wrap; }
+    .btn { font-size: 15px; font-weight: 650; padding: 11px 22px; border: 0; border-radius: 11px; cursor: pointer;
+        transition: transform .1s ease, filter .12s ease; }
+    .btn:hover { transform: translateY(-1px); filter: brightness(1.04); }
+    .btn.go { background: linear-gradient(180deg, #22b158, var(--ready)); color: #fff; box-shadow: 0 6px 14px rgba(23,163,74,.28); }
+    .btn.ghost { background: #eef1f7; color: var(--ink); }
+    .btn.no { background: #fbecec; color: var(--slip); }
+    .done h2 { color: var(--ready); }
+    .written { font-size: 15.5px; padding: 10px 0; border-top: 1px solid var(--line); display: flex; gap: 9px; align-items: baseline; }
+    .written::before { content: "✓"; color: var(--ready); font-weight: 900; }
+
+    @@keyframes spin { to { transform: rotate(360deg); } }
+    @@keyframes rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 </style>
 
-<div class="companion">
-    <h1>What should I focus on this week?</h1>
+<div class="app">
+    <div class="head">
+        <div>
+            <div class="brand">Zava Sales Intelligence</div>
+            <h1>What should I focus on this week?</h1>
+        </div>
+        @if (_running)
+        {
+            <span class="working"><span class="spinner"></span> The squad is working...</span>
+        }
+        else if (_report is null)
+        {
+            <button class="run" @onclick="RunAsync">Run the squad</button>
+        }
+    </div>
 
-    @if (!_running && _report is null)
-    {
-        <button class="ask" @onclick="RunAsync">Run the squad</button>
-    }
-
-    <div class="grid">
+    <div class="layout">
         <div class="thread">
+            @if (_thread.Count > 0)
+            {
+                <div class="lead">Squad activity</div>
+            }
             @foreach (var line in _thread)
             {
-                <div>@line</div>
+                <div class="step"><span class="dot"></span><span>@line</span></div>
+            }
+            @if (_active is not null)
+            {
+                <div class="step active"><span class="spinner sm"></span><span>@_active</span></div>
             }
         </div>
 
         <div class="cards">
             @foreach (var archetype in Cards)
             {
-                <div class="card @archetype">
-                    <h3>@archetype</h3>
-                    @foreach (var recommendation in _recommendations.Where(r => r.Assessment.Archetype == archetype))
-                    {
-                        <div class="row" @onclick="() => ShowEvidence(recommendation.Assessment)">
-                            @recommendation.Assessment.AccountName <span style="opacity:.8">bant @recommendation.Assessment.Bant.Score</span>
-                        </div>
-                    }
+                var accounts = _recommendations.Where(r => r.Assessment.Archetype == archetype).ToList();
+                <div class="col @archetype">
+                    <header>@Label(archetype) <span class="count">@accounts.Count</span></header>
+                    <div class="body">
+                        @if (accounts.Count == 0)
+                        {
+                            <div class="empty">No accounts</div>
+                        }
+                        @foreach (var recommendation in accounts)
+                        {
+                            <div class="acct" @onclick="() => ShowEvidence(recommendation.Assessment)">
+                                <span>@recommendation.Assessment.AccountName</span>
+                                <span class="bant @BantClass(recommendation.Assessment.Bant.Score)">BANT @recommendation.Assessment.Bant.Score</span>
+                            </div>
+                        }
+                    </div>
                 </div>
             }
         </div>
@@ -62,19 +164,19 @@
     @if (_evidence is not null)
     {
         <div class="panel">
-            <h2>@_evidence.AccountName - evidence</h2>
-            <p style="font-size:18px">@_evidence.Rationale</p>
-            <ul class="evidence">
-                @foreach (var (axis, criterion) in Axes(_evidence.Bant))
-                {
-                    <li><strong>@axis: @criterion.Status.</strong> @criterion.Reasoning
-                        @foreach (var evidence in criterion.Evidence)
-                        {
-                            <em> ["@evidence.Excerpt" - @evidence.EntityLogicalName @evidence.Date]</em>
-                        }
-                    </li>
-                }
-            </ul>
+            <h2>@_evidence.AccountName</h2>
+            <p class="sub">@_evidence.Rationale</p>
+            @foreach (var (axis, criterion) in Axes(_evidence.Bant))
+            {
+                <div class="axis">
+                    <span class="name">@axis</span> <span class="status @criterion.Status">@criterion.Status</span>
+                    <div>@criterion.Reasoning</div>
+                    @foreach (var evidence in criterion.Evidence)
+                    {
+                        <div class="quote">"@evidence.Excerpt" - @evidence.EntityLogicalName, @evidence.Date</div>
+                    }
+                </div>
+            }
         </div>
     }
 
@@ -82,27 +184,26 @@
     {
         <div class="panel">
             <h2>Approve before anything is written</h2>
+            <p class="sub">Nothing reaches Dataverse until you say so.</p>
             @foreach (var proposal in _proposals)
             {
-                <div class="proposal">
-                    <label>
-                        <input type="checkbox" checked="@_selected.Contains(proposal.Number)"
-                               @onchange="e => Toggle(proposal.Number, e)" />
-                        [@proposal.Number] <strong>@proposal.Action.Type</strong> on @proposal.OpportunityName: @proposal.Action.Title
-                    </label>
-                </div>
+                <label class="prop">
+                    <input type="checkbox" checked="@_selected.Contains(proposal.Number)"
+                           @onchange="e => Toggle(proposal.Number, e)" />
+                    <span><span class="tag @proposal.Action.Type">@proposal.Action.Type</span>@proposal.OpportunityName - @proposal.Action.Title</span>
+                </label>
             }
-            <div style="margin-top:12px">
-                <button class="approve go" @onclick="ApproveSelected">Approve selected</button>
-                <button class="approve go" @onclick="ApproveAll">Approve all</button>
-                <button class="approve no" @onclick="RejectAll">Reject all</button>
+            <div class="actions">
+                <button class="btn go" @onclick="ApproveAll">Approve all</button>
+                <button class="btn ghost" @onclick="ApproveSelected">Approve selected</button>
+                <button class="btn no" @onclick="RejectAll">Reject all</button>
             </div>
         </div>
     }
 
     @if (_report is not null)
     {
-        <div class="panel">
+        <div class="panel done">
             <h2>Done</h2>
             @foreach (var line in _report.Lines)
             {
@@ -126,7 +227,30 @@
         ["execute"] = "Wrote the approved actions",
     };
 
+    // The workflow only reports when a stage finishes, so between stages we show what is
+    // running now. The reasoning stages take the longest, so this fills the quiet gaps.
+    // Keyed by the stage that just completed, valued by the stage now underway.
+    static readonly Dictionary<string, string> Working = new()
+    {
+        ["watcher"] = "Thinker is reasoning over every opportunity against BANT...",
+        ["thinker"] = "Ranker is ordering them by qualification...",
+        ["ranker"] = "Operator is reviewing the actions...",
+        ["operator"] = "Operator is challenging the Thinker...",
+        ["challenge"] = "Operator is preparing the actions...",
+    };
+
+    static string Label(Archetype archetype) => archetype switch
+    {
+        Archetype.ReadyToClose => "Ready to close",
+        Archetype.AtRisk => "At risk",
+        _ => archetype.ToString(),
+    };
+
+    // BANT runs 0-4; colour the badge from cold (red) to closeable (green).
+    static string BantClass(int score) => score >= 4 ? "b4" : score == 3 ? "b3" : score == 2 ? "b2" : "b1";
+
     bool _running;
+    string? _active;
     readonly List<string> _thread = new();
     IReadOnlyList<RankedRecommendation> _recommendations = [];
     IReadOnlyList<ActionProposal> _proposals = [];
@@ -143,39 +267,57 @@
         _evidence = null;
         _recommendations = [];
         _proposals = [];
+        _thread.Add("Starting the squad...");
+        _active = "Watcher is retrieving every account from Dataverse...";
+        await InvokeAsync(StateHasChanged);
 
-        var workflow = Factory.Build();
-        var run = await InProcessExecution.RunStreamingAsync(workflow, "What should I focus on this week?");
-
-        await foreach (var workflowEvent in run.WatchStreamAsync())
+        try
         {
-            switch (workflowEvent)
+            // Build (and the Dataverse client construction it does) off the render thread
+            // so the UI stays responsive and the thread updates as the run streams.
+            var workflow = await Task.Run(Factory.Build);
+            var run = await InProcessExecution.RunStreamingAsync(workflow, "What should I focus on this week?");
+
+            await foreach (var workflowEvent in run.WatchStreamAsync())
             {
-                case ExecutorCompletedEvent completed:
-                    _thread.Add(Stages.GetValueOrDefault(completed.ExecutorId, completed.ExecutorId));
-                    await InvokeAsync(StateHasChanged);
-                    break;
+                switch (workflowEvent)
+                {
+                    case ExecutorCompletedEvent completed:
+                        _thread.Add(Stages.GetValueOrDefault(completed.ExecutorId, completed.ExecutorId));
+                        _active = Working.GetValueOrDefault(completed.ExecutorId);
+                        await InvokeAsync(StateHasChanged);
+                        break;
 
-                case RequestInfoEvent requestInfo when requestInfo.Request.Data.As<ApprovalRequest>() is { } approvalRequest:
-                    _recommendations = approvalRequest.Recommendations;
-                    _proposals = approvalRequest.Proposals;
-                    _pending = new TaskCompletionSource<ApprovalDecision>();
-                    await InvokeAsync(StateHasChanged);
-                    var decision = await _pending.Task;
-                    _pending = null;
-                    await run.SendResponseAsync(requestInfo.Request.CreateResponse(decision));
-                    await InvokeAsync(StateHasChanged);
-                    break;
+                    case RequestInfoEvent requestInfo when requestInfo.Request.Data.As<ApprovalRequest>() is { } approvalRequest:
+                        _active = null;
+                        _recommendations = approvalRequest.Recommendations;
+                        _proposals = approvalRequest.Proposals;
+                        _pending = new TaskCompletionSource<ApprovalDecision>();
+                        await InvokeAsync(StateHasChanged);
+                        var decision = await _pending.Task;
+                        _pending = null;
+                        _active = decision.Approved.Count > 0 ? "Writing the approved actions to Dataverse..." : null;
+                        await run.SendResponseAsync(requestInfo.Request.CreateResponse(decision));
+                        await InvokeAsync(StateHasChanged);
+                        break;
 
-                case WorkflowOutputEvent { Data: WriteReport report }:
-                    _report = report;
-                    await InvokeAsync(StateHasChanged);
-                    break;
+                    case WorkflowOutputEvent { Data: WriteReport report }:
+                        _report = report;
+                        await InvokeAsync(StateHasChanged);
+                        break;
+                }
             }
         }
-
-        _running = false;
-        await InvokeAsync(StateHasChanged);
+        catch (Exception ex)
+        {
+            _thread.Add($"Error: {ex.Message}");
+        }
+        finally
+        {
+            _active = null;
+            _running = false;
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
     void Toggle(int number, ChangeEventArgs e)
