@@ -1,4 +1,5 @@
 using Azure.AI.OpenAI;
+using Azure.Core;
 using Azure.Identity;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
@@ -17,10 +18,18 @@ string fastDeployment = RequireEnv("ZAVA_OPENAI_DEPLOYMENT");
 string reasoningDeployment = RequireEnv("ZAVA_OPENAI_REASONING_DEPLOYMENT");
 var credential = new AzureCliCredential();
 
-using var dataverse = DataverseClientFactory.Create(dataverseUrl, credential);
-var queries = new WatcherQueries(dataverse);
+// The identity boundary. Retrieval runs under the reader credential, writes under the
+// writer credential, injected here - the executors never see which one they hold. Set
+// the app-user secrets to make it real; until then both fall back to the interactive
+// login. See docs/identity.md.
+var readerCredential = AppUserCredential("ZAVA_READER_CLIENT_ID", "ZAVA_READER_CLIENT_SECRET", credential);
+var writerCredential = AppUserCredential("ZAVA_WRITER_CLIENT_ID", "ZAVA_WRITER_CLIENT_SECRET", credential);
+
+using var readerClient = DataverseClientFactory.Create(dataverseUrl, readerCredential);
+using var writerClient = DataverseClientFactory.Create(dataverseUrl, writerCredential);
+var queries = new WatcherQueries(readerClient);
 var watcher = new WatcherService(queries);
-var writer = new WriterTools(dataverse);
+var writer = new WriterTools(writerClient);
 
 var openAiClient = new AzureOpenAIClient(new Uri(openAiEndpoint), credential);
 AIAgent thinker = openAiClient.GetChatClient(reasoningDeployment)
@@ -103,6 +112,19 @@ static IReadOnlyList<ActionProposal> Approve(ApprovalRequest request)
         .Select(int.Parse)
         .ToHashSet();
     return request.Proposals.Where(proposal => numbers.Contains(proposal.Number)).ToList();
+}
+
+// Builds an application-user credential from its client id and secret, or falls back to
+// the interactive login when they are not set. The tenant is shared (ZAVA_TENANT_ID).
+static TokenCredential AppUserCredential(string clientIdVar, string clientSecretVar, TokenCredential fallback)
+{
+    var clientId = Environment.GetEnvironmentVariable(clientIdVar);
+    var clientSecret = Environment.GetEnvironmentVariable(clientSecretVar);
+    var tenantId = Environment.GetEnvironmentVariable("ZAVA_TENANT_ID");
+
+    return clientId is not null && clientSecret is not null && tenantId is not null
+        ? new ClientSecretCredential(tenantId, clientId, clientSecret)
+        : fallback;
 }
 
 static string RequireEnv(string name) =>
