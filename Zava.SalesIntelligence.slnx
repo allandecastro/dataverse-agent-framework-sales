@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/Zava.SalesIntelligence.Agents/Zava.SalesIntelligence.Agents.csproj" />
+    <Project Path="src/Zava.SalesIntelligence.Companion/Zava.SalesIntelligence.Companion.csproj" />
     <Project Path="src/Zava.SalesIntelligence.Dataverse/Zava.SalesIntelligence.Dataverse.csproj" />
     <Project Path="src/Zava.SalesIntelligence.Host/Zava.SalesIntelligence.Host.csproj" />
     <Project Path="src/Zava.SalesIntelligence.Workflow/Zava.SalesIntelligence.Workflow.csproj" />
