@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
+using Zava.SalesIntelligence.Agents.Contracts;
 using Zava.SalesIntelligence.Dataverse;
 
 namespace Zava.SalesIntelligence.Workflow;
@@ -16,6 +17,7 @@ public static class SalesWorkflow
         WatcherService watcher,
         AIAgent thinker,
         AIAgent operatorAgent,
+        WriterTools writer,
         TimeSpan pacing)
     {
         var watcherExecutor = new WatcherExecutor(queries, watcher, pacing);
@@ -24,6 +26,12 @@ public static class SalesWorkflow
         var operatorExecutor = new OperatorExecutor(pacing);
         var challengeExecutor = new ChallengeExecutor(thinker, pacing);
         var actionExecutor = new ActionExecutor(operatorAgent, pacing);
+        var executeExecutor = new ExecuteExecutor(writer, pacing);
+
+        // The approval gate is a RequestPort: the actions stage sends an ApprovalRequest,
+        // the run pauses and emits it, and the approved actions route to the execute stage.
+        // Nothing is written without a decision.
+        var approvalPort = RequestPort.Create<ApprovalRequest, ApprovalDecision>("approval");
 
         // The challenge edge is conditional: the Operator either routes to the Challenge
         // (Thinker re-examines) or straight to action preparation. Either way the flow
@@ -35,7 +43,9 @@ public static class SalesWorkflow
             .AddEdge(operatorExecutor, challengeExecutor)
             .AddEdge(operatorExecutor, actionExecutor)
             .AddEdge(challengeExecutor, actionExecutor)
-            .WithOutputFrom(actionExecutor)
+            .AddEdge(actionExecutor, approvalPort)
+            .AddEdge(approvalPort, executeExecutor)
+            .WithOutputFrom(executeExecutor)
             .Build();
     }
 }

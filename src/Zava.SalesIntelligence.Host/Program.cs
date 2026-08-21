@@ -8,8 +8,9 @@ using Zava.SalesIntelligence.Agents.Contracts;
 using Zava.SalesIntelligence.Dataverse;
 using Zava.SalesIntelligence.Workflow;
 
-// Phase 3: the squad as a workflow graph. Watcher retrieves, Thinker judges, Ranker
-// orders in plain code, Operator prepares actions. Run it and stream the supersteps.
+// Phase 3 and 4: the squad as a workflow graph, with an approval gate. Watcher retrieves,
+// Thinker judges, Ranker orders, Operator prepares actions, the run pauses for approval,
+// and approved actions are written. Stream the supersteps.
 string dataverseUrl = RequireEnv("ZAVA_DATAVERSE_URL");
 string openAiEndpoint = RequireEnv("ZAVA_OPENAI_ENDPOINT");
 string fastDeployment = RequireEnv("ZAVA_OPENAI_DEPLOYMENT");
@@ -19,6 +20,7 @@ var credential = new AzureCliCredential();
 using var dataverse = DataverseClientFactory.Create(dataverseUrl, credential);
 var queries = new WatcherQueries(dataverse);
 var watcher = new WatcherService(queries);
+var writer = new WriterTools(dataverse);
 
 var openAiClient = new AzureOpenAIClient(new Uri(openAiEndpoint), credential);
 AIAgent thinker = openAiClient.GetChatClient(reasoningDeployment)
@@ -28,7 +30,7 @@ AIAgent operatorAgent = openAiClient.GetChatClient(fastDeployment)
 
 var pacing = TimeSpan.FromMilliseconds(
     int.TryParse(Environment.GetEnvironmentVariable("ZAVA_STEP_DELAY_MS"), out var ms) ? ms : 0);
-var workflow = SalesWorkflow.Build(queries, watcher, thinker, operatorAgent, pacing);
+var workflow = SalesWorkflow.Build(queries, watcher, thinker, operatorAgent, writer, pacing);
 
 // `dotnet run ... graph` prints the workflow graph as Mermaid and exits, without running it.
 if (args.Contains("graph"))
@@ -49,21 +51,58 @@ await foreach (var workflowEvent in run.WatchStreamAsync())
             Console.WriteLine($"  superstep: {completed.ExecutorId} done");
             break;
 
-        case WorkflowOutputEvent { Data: SalesBrief brief }:
-            Console.WriteLine();
-            foreach (var recommendation in brief.Recommendations)
+        case RequestInfoEvent requestInfo:
+            var approvalRequest = requestInfo.Request.Data.As<ApprovalRequest>();
+            if (approvalRequest is not null)
             {
-                var assessment = recommendation.Assessment;
-                Console.WriteLine(
-                    $"#{recommendation.Rank}  {assessment.AccountName}  " +
-                    $"[{assessment.Archetype}]  bant={assessment.Bant.Score}  {assessment.Confidence}");
-                foreach (var action in recommendation.Actions)
-                {
-                    Console.WriteLine($"     - {action.Type}: {action.Title}");
-                }
+                var approved = Approve(approvalRequest);
+                await run.SendResponseAsync(requestInfo.Request.CreateResponse(new ApprovalDecision(approved)));
+            }
+            break;
+
+        case WorkflowOutputEvent { Data: WriteReport report }:
+            Console.WriteLine();
+            foreach (var line in report.Lines)
+            {
+                Console.WriteLine($"  {line}");
             }
             break;
     }
+}
+
+// The seller's decision. Interactive prompting is a companion concern; here the policy
+// comes from ZAVA_APPROVE: "all", "none" (default), or a comma-separated list of numbers.
+static IReadOnlyList<ActionProposal> Approve(ApprovalRequest request)
+{
+    Console.WriteLine();
+    Console.WriteLine("Approval needed. Ranked focus:");
+    foreach (var recommendation in request.Recommendations)
+    {
+        var assessment = recommendation.Assessment;
+        Console.WriteLine($"  #{recommendation.Rank}  {assessment.AccountName}  [{assessment.Archetype}]  bant={assessment.Bant.Score}");
+    }
+
+    Console.WriteLine("Proposed actions:");
+    foreach (var proposal in request.Proposals)
+    {
+        Console.WriteLine($"  [{proposal.Number}] {proposal.Action.Type} on {proposal.OpportunityName}: {proposal.Action.Title}");
+    }
+
+    var policy = Environment.GetEnvironmentVariable("ZAVA_APPROVE");
+    if (policy is "all")
+    {
+        return request.Proposals;
+    }
+    if (string.IsNullOrWhiteSpace(policy) || policy is "none")
+    {
+        return [];
+    }
+
+    var numbers = policy
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(int.Parse)
+        .ToHashSet();
+    return request.Proposals.Where(proposal => numbers.Contains(proposal.Number)).ToList();
 }
 
 static string RequireEnv(string name) =>
