@@ -27,7 +27,11 @@ var writerCredential = AppUserCredential("ZAVA_WRITER_CLIENT_ID", "ZAVA_WRITER_C
 
 using var readerClient = DataverseClientFactory.Create(dataverseUrl, readerCredential);
 using var writerClient = DataverseClientFactory.Create(dataverseUrl, writerCredential);
-var queries = new WatcherQueries(readerClient);
+// The seller whose pipeline to read. When the Watcher runs under the reader app identity
+// (which owns no accounts) this scopes the account query to the seller by owner. Unset for
+// an interactive run, where the query falls back to the signed-in user.
+Guid? sellerUserId = Guid.TryParse(Environment.GetEnvironmentVariable("ZAVA_SELLER_USER_ID"), out var seller) ? seller : null;
+var queries = new WatcherQueries(readerClient, sellerUserId);
 var watcher = new WatcherService(queries);
 var writer = new WriterTools(writerClient);
 

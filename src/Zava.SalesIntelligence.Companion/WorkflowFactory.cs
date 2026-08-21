@@ -26,7 +26,10 @@ public sealed class WorkflowFactory
 
         var readerClient = DataverseClientFactory.Create(dataverseUrl, readerCredential);
         var writerClient = DataverseClientFactory.Create(dataverseUrl, writerCredential);
-        var queries = new WatcherQueries(readerClient);
+        // Scope the account read to the seller by owner when running under the reader app
+        // identity (which owns no accounts); falls back to the signed-in user when unset.
+        Guid? sellerUserId = Guid.TryParse(Environment.GetEnvironmentVariable("ZAVA_SELLER_USER_ID"), out var seller) ? seller : null;
+        var queries = new WatcherQueries(readerClient, sellerUserId);
         var watcher = new WatcherService(queries);
         var writer = new WriterTools(writerClient);
 
