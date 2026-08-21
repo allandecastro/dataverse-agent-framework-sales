@@ -18,13 +18,21 @@ public static class SalesWorkflow
         var watcherExecutor = new WatcherExecutor(queries, watcher);
         var thinkerExecutor = new ThinkerExecutor(thinker);
         var rankerExecutor = new RankerExecutor();
-        var operatorExecutor = new OperatorExecutor(operatorAgent);
+        var operatorExecutor = new OperatorExecutor();
+        var challengeExecutor = new ChallengeExecutor(thinker);
+        var actionExecutor = new ActionExecutor(operatorAgent);
 
+        // The challenge edge is conditional: the Operator either routes to the Challenge
+        // (Thinker re-examines) or straight to action preparation. Either way the flow
+        // converges on the actions, so the round trip is capped at one.
         return new WorkflowBuilder(watcherExecutor)
             .AddEdge(watcherExecutor, thinkerExecutor)
             .AddEdge(thinkerExecutor, rankerExecutor)
             .AddEdge(rankerExecutor, operatorExecutor)
-            .WithOutputFrom(operatorExecutor)
+            .AddEdge(operatorExecutor, challengeExecutor)
+            .AddEdge(operatorExecutor, actionExecutor)
+            .AddEdge(challengeExecutor, actionExecutor)
+            .WithOutputFrom(actionExecutor)
             .Build();
     }
 }
