@@ -47,20 +47,10 @@ public static class Thinker
 
         # Skill: bant-scoring
 
-        {ReadResource("SKILL.md")}
+        {Skills.Load("bant-scoring", "SKILL.md")}
 
         # Skill reference: worked examples
 
-        {ReadResource("examples.md")}
+        {Skills.Load("bant-scoring", "examples.md")}
         """;
-
-    static string ReadResource(string endsWith)
-    {
-        var assembly = typeof(Thinker).Assembly;
-        var name = assembly.GetManifestResourceNames()
-            .Single(n => n.EndsWith(endsWith, StringComparison.OrdinalIgnoreCase));
-        using var stream = assembly.GetManifestResourceStream(name)!;
-        using var reader = new StreamReader(stream);
-        return reader.ReadToEnd();
-    }
 }
