@@ -1,0 +1,195 @@
+@page "/"
+@rendermode InteractiveServer
+@using Microsoft.Agents.AI.Workflows
+@using Zava.SalesIntelligence.Agents.Contracts
+@inject WorkflowFactory Factory
+
+<PageTitle>Zava Sales Intelligence</PageTitle>
+
+<style>
+    .companion { font-family: 'Segoe UI', sans-serif; color: #1b1b1b; max-width: 1400px; margin: 0 auto; padding: 24px; }
+    .companion h1 { font-size: 34px; margin: 0 0 16px; }
+    .ask { font-size: 22px; padding: 16px 28px; border: 0; border-radius: 10px; background: #0b5cad; color: #fff; cursor: pointer; }
+    .grid { display: grid; grid-template-columns: 1fr 2fr; gap: 24px; margin-top: 20px; }
+    .thread div { font-size: 18px; padding: 8px 12px; border-left: 4px solid #0b5cad; margin-bottom: 6px; background: #f2f6fb; }
+    .cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .card { border-radius: 10px; padding: 12px; color: #fff; min-height: 120px; }
+    .card h3 { margin: 0 0 8px; font-size: 18px; }
+    .card .row { background: rgba(255,255,255,.18); border-radius: 6px; padding: 6px 8px; margin-bottom: 6px; cursor: pointer; font-size: 16px; }
+    .Slipping { background: #b3261e; } .AtRisk { background: #b26a00; }
+    .Reconnect { background: #55618a; } .ReadyToClose { background: #1e7d43; }
+    .panel { margin-top: 20px; padding: 16px; border: 2px solid #0b5cad; border-radius: 10px; }
+    .panel h2 { margin: 0 0 12px; font-size: 24px; }
+    .proposal { font-size: 17px; padding: 6px 0; }
+    .approve { font-size: 18px; padding: 10px 20px; border: 0; border-radius: 8px; margin-right: 10px; cursor: pointer; }
+    .approve.go { background: #1e7d43; color: #fff; } .approve.no { background: #6b6b6b; color: #fff; }
+    .evidence li { font-size: 16px; margin-bottom: 6px; }
+    .written { font-size: 18px; color: #1e7d43; }
+</style>
+
+<div class="companion">
+    <h1>What should I focus on this week?</h1>
+
+    @if (!_running && _report is null)
+    {
+        <button class="ask" @onclick="RunAsync">Run the squad</button>
+    }
+
+    <div class="grid">
+        <div class="thread">
+            @foreach (var line in _thread)
+            {
+                <div>@line</div>
+            }
+        </div>
+
+        <div class="cards">
+            @foreach (var archetype in Cards)
+            {
+                <div class="card @archetype">
+                    <h3>@archetype</h3>
+                    @foreach (var recommendation in _recommendations.Where(r => r.Assessment.Archetype == archetype))
+                    {
+                        <div class="row" @onclick="() => ShowEvidence(recommendation.Assessment)">
+                            @recommendation.Assessment.AccountName <span style="opacity:.8">bant @recommendation.Assessment.Bant.Score</span>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (_evidence is not null)
+    {
+        <div class="panel">
+            <h2>@_evidence.AccountName - evidence</h2>
+            <p style="font-size:18px">@_evidence.Rationale</p>
+            <ul class="evidence">
+                @foreach (var (axis, criterion) in Axes(_evidence.Bant))
+                {
+                    <li><strong>@axis: @criterion.Status.</strong> @criterion.Reasoning
+                        @foreach (var evidence in criterion.Evidence)
+                        {
+                            <em> ["@evidence.Excerpt" - @evidence.EntityLogicalName @evidence.Date]</em>
+                        }
+                    </li>
+                }
+            </ul>
+        </div>
+    }
+
+    @if (_pending is not null)
+    {
+        <div class="panel">
+            <h2>Approve before anything is written</h2>
+            @foreach (var proposal in _proposals)
+            {
+                <div class="proposal">
+                    <label>
+                        <input type="checkbox" checked="@_selected.Contains(proposal.Number)"
+                               @onchange="e => Toggle(proposal.Number, e)" />
+                        [@proposal.Number] <strong>@proposal.Action.Type</strong> on @proposal.OpportunityName: @proposal.Action.Title
+                    </label>
+                </div>
+            }
+            <div style="margin-top:12px">
+                <button class="approve go" @onclick="ApproveSelected">Approve selected</button>
+                <button class="approve go" @onclick="ApproveAll">Approve all</button>
+                <button class="approve no" @onclick="RejectAll">Reject all</button>
+            </div>
+        </div>
+    }
+
+    @if (_report is not null)
+    {
+        <div class="panel">
+            <h2>Done</h2>
+            @foreach (var line in _report.Lines)
+            {
+                <div class="written">@line</div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    static readonly Archetype[] Cards = [Archetype.Slipping, Archetype.AtRisk, Archetype.Reconnect, Archetype.ReadyToClose];
+    static readonly Dictionary<string, string> Stages = new()
+    {
+        ["watcher"] = "Watcher retrieved every account from Dataverse",
+        ["thinker"] = "Thinker judged each opportunity against BANT",
+        ["ranker"] = "Ranker ordered them by qualification",
+        ["operator"] = "Operator reviewed the actions",
+        ["challenge"] = "Operator challenged the Thinker, who re-examined",
+        ["actions"] = "Operator prepared the actions",
+        ["approval"] = "Waiting for your approval",
+        ["execute"] = "Wrote the approved actions",
+    };
+
+    bool _running;
+    readonly List<string> _thread = new();
+    IReadOnlyList<RankedRecommendation> _recommendations = [];
+    IReadOnlyList<ActionProposal> _proposals = [];
+    readonly HashSet<int> _selected = new();
+    TaskCompletionSource<ApprovalDecision>? _pending;
+    WriteReport? _report;
+    OpportunityAssessment? _evidence;
+
+    async Task RunAsync()
+    {
+        _running = true;
+        _thread.Clear();
+        _report = null;
+        _evidence = null;
+        _recommendations = [];
+        _proposals = [];
+
+        var workflow = Factory.Build();
+        var run = await InProcessExecution.RunStreamingAsync(workflow, "What should I focus on this week?");
+
+        await foreach (var workflowEvent in run.WatchStreamAsync())
+        {
+            switch (workflowEvent)
+            {
+                case ExecutorCompletedEvent completed:
+                    _thread.Add(Stages.GetValueOrDefault(completed.ExecutorId, completed.ExecutorId));
+                    await InvokeAsync(StateHasChanged);
+                    break;
+
+                case RequestInfoEvent requestInfo when requestInfo.Request.Data.As<ApprovalRequest>() is { } approvalRequest:
+                    _recommendations = approvalRequest.Recommendations;
+                    _proposals = approvalRequest.Proposals;
+                    _pending = new TaskCompletionSource<ApprovalDecision>();
+                    await InvokeAsync(StateHasChanged);
+                    var decision = await _pending.Task;
+                    _pending = null;
+                    await run.SendResponseAsync(requestInfo.Request.CreateResponse(decision));
+                    await InvokeAsync(StateHasChanged);
+                    break;
+
+                case WorkflowOutputEvent { Data: WriteReport report }:
+                    _report = report;
+                    await InvokeAsync(StateHasChanged);
+                    break;
+            }
+        }
+
+        _running = false;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void Toggle(int number, ChangeEventArgs e)
+    {
+        if (e.Value is true) { _selected.Add(number); } else { _selected.Remove(number); }
+    }
+
+    void ApproveSelected() => _pending?.SetResult(new ApprovalDecision(_proposals.Where(p => _selected.Contains(p.Number)).ToList()));
+    void ApproveAll() => _pending?.SetResult(new ApprovalDecision(_proposals));
+    void RejectAll() => _pending?.SetResult(new ApprovalDecision([]));
+    void ShowEvidence(OpportunityAssessment assessment) => _evidence = assessment;
+
+    static IEnumerable<(string Axis, BantCriterion Criterion)> Axes(BantAssessment bant) =>
+    [
+        ("Budget", bant.Budget), ("Authority", bant.Authority), ("Need", bant.Need), ("Timing", bant.Timing),
+    ];
+}
