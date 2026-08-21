@@ -26,7 +26,16 @@ AIAgent thinker = openAiClient.GetChatClient(reasoningDeployment)
 AIAgent operatorAgent = openAiClient.GetChatClient(fastDeployment)
     .AsAIAgent(name: "Operator", instructions: Operator.BuildSystemPrompt());
 
-var workflow = SalesWorkflow.Build(queries, watcher, thinker, operatorAgent);
+var pacing = TimeSpan.FromMilliseconds(
+    int.TryParse(Environment.GetEnvironmentVariable("ZAVA_STEP_DELAY_MS"), out var ms) ? ms : 0);
+var workflow = SalesWorkflow.Build(queries, watcher, thinker, operatorAgent, pacing);
+
+// `dotnet run ... graph` prints the workflow graph as Mermaid and exits, without running it.
+if (args.Contains("graph"))
+{
+    Console.WriteLine(workflow.ToMermaidString());
+    return;
+}
 
 Console.WriteLine("Running the sales workflow...");
 Console.WriteLine();
