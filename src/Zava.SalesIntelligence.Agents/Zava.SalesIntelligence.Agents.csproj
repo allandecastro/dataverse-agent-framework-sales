@@ -3,4 +3,10 @@
     <PackageReference Include="Microsoft.Agents.AI" />
     <PackageReference Include="Microsoft.Agents.AI.OpenAI" />
   </ItemGroup>
+
+  <!-- The bant-scoring skill travels with the assembly so the Thinker loads it
+       regardless of the working directory. -->
+  <ItemGroup>
+    <EmbeddedResource Include="skills/**/*.md" />
+  </ItemGroup>
 </Project>

@@ -29,7 +29,7 @@ is used as a competitor, never as an account.
 |---|---|---|---|
 | ZAVA-001 | Fabrikam | **Slipping** | Inversion. CRM looks strong (Propose, large amount) but a competitor is named, the close date moved twice and the champion was deactivated. |
 | ZAVA-002 | Alpine Ski House | **ReadyToClose** | Inversion. CRM looks minor (small amount, early stage) but budget is approved in writing, the COO is engaged and the customer owns a date. |
-| ZAVA-003 | Northwind Traders | Reconnect | Well qualified (BANT 3) but silent for over 30 days. |
+| ZAVA-003 | Northwind Traders | Slipping | Well qualified, but a competitor is named and the engaged CFO has gone quiet, so precedence beats Reconnect. |
 | ZAVA-004 | Tailspin Toys | AtRisk | Stage at Propose with BANT 2 and no competitor, so precedence lands on AtRisk, not Slipping. |
 | ZAVA-005 | Fourth Coffee | InsufficientSignal | Fewer than two axes documented. The model must refuse to conclude. Dropped by the Ranker. |
 | ZAVA-006 | Proseware | InsufficientSignal | Same, second refusal, so the behaviour is not a one-off. |
@@ -38,7 +38,7 @@ is used as a competitor, never as an account.
 | ZAVA-009 | Litware | ReadyToClose | Neutral. BANT 3 with Timing confirmed and rising activity. |
 | ZAVA-010 | Wide World Importers | AtRisk | Neutral. Under-qualified for its stage, no competitor. |
 
-Distribution: Slipping 1, ReadyToClose 3, Reconnect 2, AtRisk 2, InsufficientSignal 2.
+Distribution: Slipping 2, ReadyToClose 3, Reconnect 1, AtRisk 2, InsufficientSignal 2.
 All four archetype cards light up, and the refusal to conclude is shown twice.
 
 ## Design rule

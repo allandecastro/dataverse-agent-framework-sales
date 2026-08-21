@@ -6,4 +6,11 @@
     <ProjectReference Include="..\Zava.SalesIntelligence.Dataverse\Zava.SalesIntelligence.Dataverse.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Microsoft.Agents.AI" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" />
+  </ItemGroup>
+
 </Project>
