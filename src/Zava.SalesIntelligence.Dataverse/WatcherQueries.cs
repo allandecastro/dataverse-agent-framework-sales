@@ -8,7 +8,13 @@ namespace Zava.SalesIntelligence.Dataverse;
 // The Watcher's five reads. Every query is fixed here with bounded parameters.
 // The model chooses when to call a tool, never what to ask. Record ids are always
 // preserved so the Thinker can cite evidence that exists.
-public sealed class WatcherQueries(ServiceClient client)
+//
+// sellerUserId scopes the pipeline to one seller's accounts. When the agent runs under
+// its own scoped app identity (reader/writer), that identity owns no accounts, so the
+// query targets the seller by owner rather than EqualUserId. The agent keeps its own
+// least-privilege identity - this is not impersonation, so there is no privilege
+// escalation. When null (interactive run), it falls back to the signed-in user.
+public sealed class WatcherQueries(ServiceClient client, Guid? sellerUserId = null)
 {
     const int MaxAccounts = 25;
     const int MaxActivityWindowDays = 180;
@@ -21,7 +27,14 @@ public sealed class WatcherQueries(ServiceClient client)
             TopCount = MaxAccounts,
             Criteria = new FilterExpression(),
         };
-        query.Criteria.AddCondition("ownerid", ConditionOperator.EqualUserId);
+        if (sellerUserId is { } seller)
+        {
+            query.Criteria.AddCondition("ownerid", ConditionOperator.Equal, seller);
+        }
+        else
+        {
+            query.Criteria.AddCondition("ownerid", ConditionOperator.EqualUserId);
+        }
 
         var result = await client.RetrieveMultipleAsync(query, cancellationToken);
         return result.Entities.Select(e => new AccountRecord(
