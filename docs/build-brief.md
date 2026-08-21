@@ -412,6 +412,14 @@ The precedence order and the numeric thresholds are deliberate. The model judges
 - **[CC]** Pulsing indicator, nothing else
 - **[ALLAN]** Rehearse the window switch with a headset
 
+Design in `docs/voice.md`. The principle: the voice is an interface over the one run, not
+a second brain - its intents only read what the run produced or push a decision into the
+existing approval gate, so the squad stays the only decision-maker. Two-way interaction
+(ask, drill into evidence, approve by voice) comes from that, not from a second
+orchestrator. Needs a realtime speech component (flag the dependency first). It only makes
+sense once the run, the identity boundary, and the session samples are locked - so it
+comes after phases 4 and 7, which is why it is last and first to be cut.
+
 ### Phase 7 - Session assets
 - **[CC]** `samples/single-agent` and `samples/magentic`
 - **[CC]** README mapping session blocks to folders
