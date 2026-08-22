@@ -1,5 +1,7 @@
 @page "/"
 @rendermode InteractiveServer
+@using System.Text.Json
+@using System.Text.Json.Serialization
 @using Microsoft.Agents.AI.Workflows
 @using Zava.SalesIntelligence.Agents.Contracts
 @using Zava.SalesIntelligence.Workflow
@@ -43,6 +45,15 @@
     .thread { display: flex; flex-direction: column; gap: 8px; }
     .thread .lead { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint);
         font-weight: 600; padding: 2px 2px 6px; }
+    .ask { display: flex; flex-direction: column; gap: 9px; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--stroke); }
+    .ask .qa { display: flex; flex-direction: column; gap: 4px; }
+    .ask .q { font-size: 13.5px; font-weight: 650; color: var(--ink); }
+    .ask .q::before { content: "You"; margin-right: 7px; color: var(--faint); font-weight: 700; font-size: 10.5px; text-transform: uppercase; }
+    .ask .a { font-size: 14px; line-height: 1.5; color: var(--recon); background: #f2f3fb; border-radius: 8px; padding: 9px 12px; white-space: pre-wrap; }
+    .ask .a.thinking { color: var(--muted); font-style: italic; display: flex; align-items: center; gap: 8px; background: var(--canvas); }
+    .ask-input { width: 100%; font-size: 14px; padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 8px;
+        font-family: inherit; color: var(--ink); background: #fff; }
+    .ask-input:focus { outline: none; border-color: var(--brand); }
     .step { position: relative; display: flex; gap: 12px; align-items: flex-start; background: var(--card);
         border: 1px solid var(--stroke); border-radius: 8px; padding: 12px 15px; font-size: 14px; line-height: 1.45;
         color: var(--ink-2); box-shadow: var(--shadow-2); animation: rise .3s var(--ease) both; }
@@ -151,6 +162,27 @@
 
     <div class="layout">
         <div class="thread">
+            @if (_chat is not null)
+            {
+                <div class="ask">
+                    <div class="lead">Ask about this week</div>
+                    @foreach (var (question, answer) in _qa)
+                    {
+                        <div class="qa">
+                            <div class="q">@question</div>
+                            <div class="a">@answer</div>
+                        </div>
+                    }
+                    @if (_asking)
+                    {
+                        <div class="qa"><div class="a thinking"><span class="spinner sm"></span> Thinking...</div></div>
+                    }
+                    <form @onsubmit="Ask" @onsubmit:preventDefault="true">
+                        <input class="ask-input" @bind="_question" @bind:event="oninput"
+                               placeholder="Why is Litware ready?" disabled="@_asking" />
+                    </form>
+                </div>
+            }
             @if (_thread.Count > 0)
             {
                 <div class="lead">Squad activity</div>
@@ -307,6 +339,12 @@
     readonly List<string> _thread = new();
     IReadOnlyList<RankedRecommendation> _recommendations = [];
     IReadOnlyList<ActionProposal> _proposals = [];
+
+    // The grounded question-answer layer over this run's results. Read-only.
+    PipelineConversation? _chat;
+    readonly List<(string Question, string Answer)> _qa = new();
+    string _question = "";
+    bool _asking;
     readonly HashSet<int> _selected = new();
     TaskCompletionSource<ApprovalDecision>? _pending;
     WriteReport? _report;
@@ -347,6 +385,8 @@
         _evidence = null;
         _recommendations = [];
         _proposals = [];
+        _chat = null;
+        _qa.Clear();
         _clock.Restart();
         _thread.Add("Starting the squad...");
         _active = "Watcher is retrieving every account from Dataverse...";
@@ -389,6 +429,8 @@
                         _active = null;
                         _recommendations = approvalRequest.Recommendations;
                         _proposals = approvalRequest.Proposals;
+                        // The results are in - the seller can now ask about them.
+                        _chat = Factory.BuildConversation(SerializeAnalysis());
                         _pending = new TaskCompletionSource<ApprovalDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
                         Log($"approval requested: {approvalRequest.Proposals.Count} proposals");
                         await InvokeAsync(StateHasChanged);
@@ -435,6 +477,43 @@
             await InvokeAsync(StateHasChanged);
         }
     }
+
+    async Task Ask()
+    {
+        var question = _question.Trim();
+        if (question.Length == 0 || _chat is null || _asking)
+        {
+            return;
+        }
+        _question = "";
+        _asking = true;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var answer = await _chat.AskAsync(question);
+            _qa.Add((question, answer));
+        }
+        catch (Exception ex)
+        {
+            _qa.Add((question, $"(error: {ex.Message})"));
+        }
+        finally
+        {
+            _asking = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // The run's results, handed to the conversation as its only source. Enum names, not
+    // integers, so the assistant reads "ReadyToClose" and "Confirmed".
+    string SerializeAnalysis() =>
+        JsonSerializer.Serialize(
+            new
+            {
+                accounts = _recommendations.Select(recommendation => recommendation.Assessment),
+                actions = _proposals.Select(proposal => new { proposal.OpportunityName, proposal.Action.Type, proposal.Action.Title }),
+            },
+            new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } });
 
     void Toggle(int number, ChangeEventArgs e)
     {
