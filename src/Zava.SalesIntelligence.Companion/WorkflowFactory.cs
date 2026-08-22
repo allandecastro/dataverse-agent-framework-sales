@@ -17,7 +17,6 @@ public sealed class WorkflowFactory
     {
         var dataverseUrl = Require("ZAVA_DATAVERSE_URL");
         var openAiEndpoint = Require("ZAVA_OPENAI_ENDPOINT");
-        var fastDeployment = Require("ZAVA_OPENAI_DEPLOYMENT");
         var reasoningDeployment = Require("ZAVA_OPENAI_REASONING_DEPLOYMENT");
 
         var credential = new AzureCliCredential();
@@ -36,7 +35,10 @@ public sealed class WorkflowFactory
         var openAiClient = new AzureOpenAIClient(new Uri(openAiEndpoint), credential);
         AIAgent thinker = openAiClient.GetChatClient(reasoningDeployment)
             .AsAIAgent(name: "Thinker", instructions: Thinker.BuildSystemPrompt());
-        AIAgent operatorAgent = openAiClient.GetChatClient(fastDeployment)
+        // The Operator runs on the reasoning deployment: the fast model under-produced
+        // actions (some actionable accounts got none, coverage swung run to run). Reasoning
+        // gives it the multi-step consistency the action generation needs.
+        AIAgent operatorAgent = openAiClient.GetChatClient(reasoningDeployment)
             .AsAIAgent(name: "Operator", instructions: Operator.BuildSystemPrompt());
 
         var pacing = TimeSpan.FromMilliseconds(

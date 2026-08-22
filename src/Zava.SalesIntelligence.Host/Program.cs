@@ -14,7 +14,6 @@ using Zava.SalesIntelligence.Workflow;
 // and approved actions are written. Stream the supersteps.
 string dataverseUrl = RequireEnv("ZAVA_DATAVERSE_URL");
 string openAiEndpoint = RequireEnv("ZAVA_OPENAI_ENDPOINT");
-string fastDeployment = RequireEnv("ZAVA_OPENAI_DEPLOYMENT");
 string reasoningDeployment = RequireEnv("ZAVA_OPENAI_REASONING_DEPLOYMENT");
 var credential = new AzureCliCredential();
 
@@ -38,7 +37,10 @@ var writer = new WriterTools(writerClient);
 var openAiClient = new AzureOpenAIClient(new Uri(openAiEndpoint), credential);
 AIAgent thinker = openAiClient.GetChatClient(reasoningDeployment)
     .AsAIAgent(name: "Thinker", instructions: Thinker.BuildSystemPrompt());
-AIAgent operatorAgent = openAiClient.GetChatClient(fastDeployment)
+// The Operator runs on the reasoning deployment: the fast model under-produced actions
+// (some actionable accounts got none, coverage swung run to run). Reasoning gives it the
+// multi-step consistency the action generation needs.
+AIAgent operatorAgent = openAiClient.GetChatClient(reasoningDeployment)
     .AsAIAgent(name: "Operator", instructions: Operator.BuildSystemPrompt());
 
 var pacing = TimeSpan.FromMilliseconds(
