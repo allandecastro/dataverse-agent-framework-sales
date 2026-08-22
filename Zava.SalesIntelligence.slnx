@@ -9,4 +9,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Zava.SalesIntelligence.Tests/Zava.SalesIntelligence.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/single-agent/Zava.SalesIntelligence.Samples.SingleAgent.csproj" />
+  </Folder>
 </Solution>
