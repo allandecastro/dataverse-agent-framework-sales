@@ -68,16 +68,16 @@ The Ranker is plain code. Judgement is the model's job; ordering is not.
 ```
 src/
   Zava.SalesIntelligence.Agents/       agents, instructions, contracts, skills
-  Zava.SalesIntelligence.Dataverse/    client, tools, auth
-  Zava.SalesIntelligence.Workflow/     executors, edges, ranker, approval
-  Zava.SalesIntelligence.Host/         ASP.NET Core, AG-UI, DevUI
-  Zava.SalesIntelligence.Companion/    Blazor client
-  Zava.SalesIntelligence.Voice/        Blazor voice shell
+  Zava.SalesIntelligence.Dataverse/    client, fixed queries, write tools, auth
+  Zava.SalesIntelligence.Workflow/     executors, edges, ranker, approval gate
+  Zava.SalesIntelligence.Host/         console workflow runner, prints the graph
+  Zava.SalesIntelligence.Companion/    Blazor companion, three screens
+  Zava.SalesIntelligence.Voice/        Blazor voice shell (phase 6, planned)
 samples/
-  single-agent/                        one agent, all tools - the comparison
+  single-agent/                        one agent, all read tools - the comparison
   magentic/                            same squad, autonomous orchestration
-scripts/                               provisioning and dataset seed
-docs/                                  build brief, diagrams
+scripts/                               provisioning, seed, run helpers
+docs/                                  build brief, architecture, identity, voice
 ```
 
 ---
@@ -91,8 +91,8 @@ docs/                                  build brief, diagrams
 | Orchestration patterns | `samples/magentic`, `Workflow/` |
 | Exposing Dataverse as tools | `Dataverse/Tools/`, `Agents/skills/` |
 | The squad in action | `Workflow/`, `Companion/` |
-| Identity boundaries | `Dataverse/Auth/`, `Workflow/Middleware/` |
-| Headless and protocols | `Host/`, `Companion/`, `Voice/` |
+| Identity boundaries | `Dataverse/DataverseClientFactory.cs`, `Host/Program.cs`, `scripts/provision.ps1`, `docs/identity.md` |
+| Headless and protocols | `Host/`, `Companion/` |
 
 ---
 
@@ -109,17 +109,19 @@ docs/                                  build brief, diagrams
 
 ```bash
 az login
-pac auth create --environment <your-environment-url>
 
-./scripts/provision.ps1     # app registrations, app users, security roles
-./scripts/seed.ps1          # demo dataset
+pwsh ./scripts/provision.ps1 -EnvironmentUrl <your-environment-url>   # app registrations, app users, security roles
+pwsh ./scripts/seed.ps1      -EnvironmentUrl <your-environment-url>   # demo dataset
 
-dotnet user-secrets set ...  # see scripts/provision.ps1 output
+# Store the client ids and secrets provision.ps1 prints in scripts/zava.env (git-ignored);
+# the run scripts source it. Set ZAVA_SELLER_USER_ID to the account owner. Without secrets,
+# identity falls back to your az login.
 
-dotnet run --project src/Zava.SalesIntelligence.Host
+./scripts/run-companion.sh          # the companion at http://localhost:5123
+./scripts/run-host.sh               # the console host; `run-host.sh graph` prints the workflow as Mermaid
 ```
 
-Then open the companion, or `/devui` to watch the workflow graph.
+Then open the companion and click "Run the squad".
 
 ---
 
