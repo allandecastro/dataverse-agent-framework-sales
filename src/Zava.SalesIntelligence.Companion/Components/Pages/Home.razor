@@ -335,6 +335,11 @@
 
     async Task RunAsync()
     {
+        // Guard against a second click landing before the button's re-render hides it.
+        if (_running)
+        {
+            return;
+        }
         _running = true;
         _thread.Clear();
         _log.Clear();
@@ -348,13 +353,14 @@
         Log("Run started");
         await InvokeAsync(StateHasChanged);
 
+        BuiltWorkflow? built = null;
         try
         {
             // Build (and the Dataverse client construction it does) off the render thread
             // so the UI stays responsive and the thread updates as the run streams.
-            var workflow = await Task.Run(Factory.Build);
+            built = await Task.Run(Factory.Build);
             Log("Workflow built, streaming events");
-            var run = await InProcessExecution.RunStreamingAsync(workflow, "What should I focus on this week?");
+            var run = await InProcessExecution.RunStreamingAsync(built.Workflow, "What should I focus on this week?");
 
             await foreach (var workflowEvent in run.WatchStreamAsync())
             {
@@ -383,7 +389,7 @@
                         _active = null;
                         _recommendations = approvalRequest.Recommendations;
                         _proposals = approvalRequest.Proposals;
-                        _pending = new TaskCompletionSource<ApprovalDecision>();
+                        _pending = new TaskCompletionSource<ApprovalDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
                         Log($"approval requested: {approvalRequest.Proposals.Count} proposals");
                         await InvokeAsync(StateHasChanged);
                         var decision = await _pending.Task;
@@ -416,6 +422,14 @@
         }
         finally
         {
+            // Dispose the Dataverse ServiceClients the build created for this run.
+            if (built is not null)
+            {
+                foreach (var resource in built.Resources)
+                {
+                    resource.Dispose();
+                }
+            }
             _active = null;
             _running = false;
             await InvokeAsync(StateHasChanged);

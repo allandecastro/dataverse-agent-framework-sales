@@ -11,9 +11,14 @@ namespace Zava.SalesIntelligence.Companion;
 // Builds the sales workflow from the ZAVA_* configuration. Retrieval runs under the
 // reader credential and writes under the writer credential, so the companion shows the
 // same identity boundary as the console host.
+// The built workflow together with the Dataverse clients it holds. The caller disposes
+// Resources when the run is done - the ServiceClients are IDisposable and outlive Build(),
+// so, unlike the console host's `using`, they need an explicit owner here.
+public sealed record BuiltWorkflow(Microsoft.Agents.AI.Workflows.Workflow Workflow, IReadOnlyList<IDisposable> Resources);
+
 public sealed class WorkflowFactory
 {
-    public Microsoft.Agents.AI.Workflows.Workflow Build()
+    public BuiltWorkflow Build()
     {
         var dataverseUrl = Require("ZAVA_DATAVERSE_URL");
         var openAiEndpoint = Require("ZAVA_OPENAI_ENDPOINT");
@@ -44,7 +49,8 @@ public sealed class WorkflowFactory
         var pacing = TimeSpan.FromMilliseconds(
             int.TryParse(Environment.GetEnvironmentVariable("ZAVA_STEP_DELAY_MS"), out var ms) ? ms : 0);
 
-        return SalesWorkflow.Build(queries, watcher, thinker, operatorAgent, writer, pacing);
+        var workflow = SalesWorkflow.Build(queries, watcher, thinker, operatorAgent, writer, pacing);
+        return new BuiltWorkflow(workflow, [readerClient, writerClient]);
     }
 
     static Azure.Core.TokenCredential AppUserCredential(string clientIdVar, string clientSecretVar, Azure.Core.TokenCredential fallback)

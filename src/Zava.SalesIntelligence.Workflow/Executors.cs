@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Xrm.Sdk;
@@ -185,9 +186,12 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
         foreach (var (judged, recommendation) in message.Items.Zip(prepared))
         {
             recommendations.Add(recommendation);
-            var opportunityId = judged.Context.Opportunities.Count > 0
-                ? judged.Context.Opportunities[0].OpportunityId
-                : Guid.Empty;
+            // Target the opportunity the assessment is about, not just the first one - an
+            // account can have more than one open opportunity.
+            var opportunity = judged.Context.Opportunities
+                .FirstOrDefault(candidate => candidate.Name == recommendation.Assessment.OpportunityName)
+                ?? judged.Context.Opportunities.FirstOrDefault();
+            var opportunityId = opportunity?.OpportunityId ?? Guid.Empty;
             foreach (var action in recommendation.Actions)
             {
                 proposals.Add(new ActionProposal(
@@ -209,9 +213,16 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
         return recommendation;
     }
 
+    // Enums as their names, not integers, so the Operator reads "ReadyToClose" and "Confirmed"
+    // rather than 0 and 2 in the assessment it reasons over.
+    static readonly JsonSerializerOptions OperatorInput = new(JsonSerializerOptions.Web)
+    {
+        Converters = { new JsonStringEnumConverter() },
+    };
+
     async Task<RankedRecommendation> PrepareAsync(Judged judged, int rank, CancellationToken cancellationToken)
     {
-        var json = JsonSerializer.Serialize(judged.Assessment);
+        var json = JsonSerializer.Serialize(judged.Assessment, OperatorInput);
         var plan = await StructuredAgent.RunAsync<OperatorPlan>(operatorAgent, json, cancellationToken);
         // The model may return no actions at all; treat that as an empty plan.
         return new RankedRecommendation(rank, judged.Assessment, plan.Actions ?? []);
@@ -249,6 +260,10 @@ internal sealed partial class ExecuteExecutor(WriterTools writer, TimeSpan pacin
     async Task<string> ExecuteAsync(ActionProposal proposal, CancellationToken cancellationToken)
     {
         var action = proposal.Action;
+        if (action.TargetRecordId == Guid.Empty)
+        {
+            return $"Skipped {action.Type} on {proposal.OpportunityName}: no target opportunity on the account";
+        }
         var regarding = new EntityReference("opportunity", action.TargetRecordId);
 
         switch (action.Type)
