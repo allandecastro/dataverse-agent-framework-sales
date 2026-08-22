@@ -53,6 +53,35 @@ public sealed class WorkflowFactory
         return new BuiltWorkflow(workflow, [readerClient, writerClient]);
     }
 
+    // A grounded question-answer agent over one run's results. The analysis is baked into the
+    // instructions, so the agent can only speak to what the squad produced - it has no tools,
+    // no Dataverse, and cannot re-judge or write. Runs on the reasoning deployment for the
+    // finer questions.
+    public PipelineConversation BuildConversation(string analysisJson)
+    {
+        var openAiEndpoint = Require("ZAVA_OPENAI_ENDPOINT");
+        var reasoningDeployment = Require("ZAVA_OPENAI_REASONING_DEPLOYMENT");
+        var openAiClient = new AzureOpenAIClient(new Uri(openAiEndpoint), new AzureCliCredential());
+
+        var instructions = ConversationInstructions + "\n\nThis week's analysis (JSON):\n" + analysisJson;
+        AIAgent assistant = openAiClient.GetChatClient(reasoningDeployment).AsAIAgent(name: "Assistant", instructions: instructions);
+        return new PipelineConversation(assistant);
+    }
+
+    const string ConversationInstructions =
+        """
+        You are the sales squad's spokesperson. Answer the seller's questions about this
+        week's pipeline analysis, using ONLY the analysis provided below.
+
+        - Ground every answer in that data. Name the account and cite the evidence - the
+          record and its date - behind any claim.
+        - If the seller asks about something not in the analysis, say you do not have it. Never
+          guess or invent a score, an action, a date, or a contact detail.
+        - You do not judge or re-score, and you never write anything to the CRM. You only
+          explain and summarise what the squad already found.
+        - Be concise and specific, and read well out loud.
+        """;
+
     static Azure.Core.TokenCredential AppUserCredential(string clientIdVar, string clientSecretVar, Azure.Core.TokenCredential fallback)
     {
         var clientId = Environment.GetEnvironmentVariable(clientIdVar);
