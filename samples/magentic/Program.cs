@@ -48,21 +48,26 @@ AIAgent manager = Reasoning().AsAIAgent(
     name: "Manager",
     instructions: "You coordinate a small sales team to answer the seller's question. Delegate retrieval, assessment, and action planning to your participants, then give a final recommendation grounded in what they found.");
 
+// The manager routes by each participant's description, so every participant needs one.
 AIAgent retriever = Fast().AsAIAgent(
     name: "Retriever",
     instructions: "You retrieve a seller's pipeline from Dataverse with your tools. Call get_accounts first, then the per-account reads. Report the records you found.",
+    description: "Retrieves the seller's pipeline from Dataverse: accounts, open opportunities, and recent activities.",
     tools: [accountTools.GetAccountsFunction(), getOpportunities, getActivities]);
 
 AIAgent assessor = Reasoning().AsAIAgent(
     name: "Assessor",
-    instructions: "You assess each open opportunity against BANT (budget, authority, need, timing) using only the retrieved records, and cite the record behind each judgement.");
+    instructions: "You assess each open opportunity against BANT (budget, authority, need, timing) using only the retrieved records, and cite the record behind each judgement.",
+    description: "Judges retrieved opportunities against BANT and cites the evidence behind each axis.");
 
 AIAgent strategist = Fast().AsAIAgent(
     name: "Strategist",
-    instructions: "You propose the next best action for the most qualified opportunities, tied to a specific signal the assessor cited. Do not invent evidence.");
+    instructions: "You propose the next best action for the most qualified opportunities, tied to a specific signal the assessor cited. Do not invent evidence.",
+    description: "Proposes the next best action for the most qualified opportunities.");
 
 var workflow = AgentWorkflowBuilder.CreateMagenticBuilderWith(manager)
     .AddParticipants([retriever, assessor, strategist])
+    .RequirePlanSignoff(false)
     .WithMaxRounds(20)
     .WithMaxStalls(3)
     .Build();
@@ -70,18 +75,25 @@ var workflow = AgentWorkflowBuilder.CreateMagenticBuilderWith(manager)
 Console.WriteLine("Handing the question to a Magentic manager and letting it orchestrate...");
 Console.WriteLine();
 
+// KNOWN LIMITATION (MAF 1.17): driving this Magentic workflow with a single
+// RunStreamingAsync makes the orchestrator run one superstep and stop - it does not
+// delegate to the participants or yield a final answer. Adding participant descriptions
+// and disabling plan sign-off did not change it. The multi-round Magentic driver contract
+// (how to pump the orchestrator through plan -> delegate -> ledger -> answer) needs an
+// official reference before this sample produces a recommendation. Left as a draft. See
+// the README. The event handler below is what the finished sample would print.
 var run = await InProcessExecution.RunStreamingAsync(workflow, "What should I focus on this week?");
 await foreach (var evt in run.WatchStreamAsync())
 {
     switch (evt)
     {
+        case ExecutorInvokedEvent invoked:
+            Console.WriteLine($"  -> {invoked.ExecutorId}");
+            break;
         case WorkflowOutputEvent output:
             Console.WriteLine();
             Console.WriteLine("=== Final recommendation ===");
             Console.WriteLine(output.Data);
-            break;
-        case ExecutorCompletedEvent completed:
-            Console.WriteLine($"  [{completed.ExecutorId}]");
             break;
     }
 }

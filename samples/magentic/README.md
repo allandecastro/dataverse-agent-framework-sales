@@ -6,6 +6,14 @@ that plans and delegates on its own, instead of the fixed workflow graph in
 
 This is the other end of the spectrum, and the reason the demo builds the harness by hand.
 
+> **Status: draft.** The wiring compiles and reads as intended, but on Microsoft Agent
+> Framework 1.17 a single `RunStreamingAsync` makes the Magentic orchestrator run one
+> superstep and stop - it does not delegate to the participants or yield a final answer
+> (adding participant descriptions and disabling plan sign-off did not change it). Driving
+> the multi-round orchestrator through plan -> delegate -> ledger -> answer needs an
+> official reference for the driver contract, so this sample does not yet produce a
+> recommendation. The comparison below is the point and holds regardless.
+
 ## What it is
 
 A `MagenticWorkflowBuilder` with a manager agent (reasoning deployment) and three
