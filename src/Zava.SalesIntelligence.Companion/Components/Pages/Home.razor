@@ -505,15 +505,44 @@
     }
 
     // The run's results, handed to the conversation as its only source. Enum names, not
-    // integers, so the assistant reads "ReadyToClose" and "Confirmed".
+    // integers, so the assistant reads "ReadyToClose" and "Confirmed"; and evidence without
+    // the raw record id, so it cites "the note from 20 August", never a GUID.
     string SerializeAnalysis() =>
         JsonSerializer.Serialize(
             new
             {
-                accounts = _recommendations.Select(recommendation => recommendation.Assessment),
+                accounts = _recommendations.Select(recommendation =>
+                {
+                    var assessment = recommendation.Assessment;
+                    return new
+                    {
+                        assessment.AccountName,
+                        assessment.OpportunityName,
+                        assessment.Amount,
+                        assessment.CloseDate,
+                        assessment.CrmStage,
+                        assessment.Archetype,
+                        assessment.Confidence,
+                        assessment.Rationale,
+                        Bant = new
+                        {
+                            Budget = Axis(assessment.Bant.Budget),
+                            Authority = Axis(assessment.Bant.Authority),
+                            Need = Axis(assessment.Bant.Need),
+                            Timing = Axis(assessment.Bant.Timing),
+                        },
+                    };
+                }),
                 actions = _proposals.Select(proposal => new { proposal.OpportunityName, proposal.Action.Type, proposal.Action.Title }),
             },
             new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } });
+
+    static object Axis(BantCriterion criterion) => new
+    {
+        criterion.Status,
+        criterion.Reasoning,
+        Evidence = criterion.Evidence.Select(evidence => new { evidence.EntityLogicalName, evidence.Date, evidence.Excerpt }),
+    };
 
     void Toggle(int number, ChangeEventArgs e)
     {
