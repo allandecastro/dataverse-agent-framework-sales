@@ -16,10 +16,21 @@ internal sealed partial class WatcherExecutor(WatcherQueries queries, WatcherSer
     public override async ValueTask HandleAsync(string message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
+        await context.AddEventAsync(new AgentProgressEvent("Watcher", "Querying Dataverse for the accounts owned by the seller"), cancellationToken);
         var accounts = await queries.GetAccountsAsync(cancellationToken);
+        await context.AddEventAsync(new AgentProgressEvent("Watcher", $"{accounts.Count} accounts. Reading opportunities, activities, notes and contacts for each"), cancellationToken);
         var contexts = await Task.WhenAll(
-            accounts.Select(account => watcher.BuildContextAsync(account, cancellationToken)));
+            accounts.Select(account => BuildAndTraceAsync(account, context, cancellationToken)));
         await context.SendMessageAsync(new ContextBatch(contexts), cancellationToken);
+    }
+
+    async Task<AccountContext> BuildAndTraceAsync(AccountRecord account, IWorkflowContext context, CancellationToken cancellationToken)
+    {
+        var accountContext = await watcher.BuildContextAsync(account, cancellationToken);
+        await context.AddEventAsync(new AgentProgressEvent("Watcher",
+            $"{accountContext.AccountName}: {accountContext.Opportunities.Count} open opp, {accountContext.Activities.Count} activities, {accountContext.Notes.Count} notes, {accountContext.Contacts.Count} contacts"),
+            cancellationToken);
+        return accountContext;
     }
 }
 
@@ -31,8 +42,20 @@ internal sealed partial class ThinkerExecutor(AIAgent thinker, TimeSpan pacing)
     public override async ValueTask HandleAsync(ContextBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
-        var judged = await Task.WhenAll(message.Contexts.Select(ctx => JudgeAsync(ctx, cancellationToken)));
+        await context.AddEventAsync(new AgentProgressEvent("Thinker", $"Judging {message.Contexts.Count} accounts against BANT - no tools, reasoning only"), cancellationToken);
+        var judged = await Task.WhenAll(message.Contexts.Select(ctx => JudgeAndTraceAsync(ctx, context, cancellationToken)));
         await context.SendMessageAsync(new JudgedBatch(judged), cancellationToken);
+    }
+
+    async Task<Judged> JudgeAndTraceAsync(AccountContext accountContext, IWorkflowContext context, CancellationToken cancellationToken)
+    {
+        var judged = await JudgeAsync(accountContext, cancellationToken);
+        var a = judged.Assessment;
+        // Show InsufficientSignal for a refusal rather than the archetype enum's default.
+        var call = a.Confidence == Confidence.InsufficientSignal ? "InsufficientSignal" : a.Archetype.ToString();
+        await context.AddEventAsync(new AgentThoughtEvent("Thinker",
+            $"{a.AccountName} -> {call} (BANT {a.Bant.Score}/4): {Clip(a.Rationale)}"), cancellationToken);
+        return judged;
     }
 
     async Task<Judged> JudgeAsync(AccountContext accountContext, CancellationToken cancellationToken)
@@ -44,6 +67,8 @@ internal sealed partial class ThinkerExecutor(AIAgent thinker, TimeSpan pacing)
             : (DateOnly?)null;
         return new Judged(accountContext, assessment, lastActivity);
     }
+
+    static string Clip(string text) => text.Length > 150 ? text[..147] + "..." : text;
 }
 
 // Ranker: plain code, deterministic. Drops refusals and orders the rest, keeping each
@@ -66,6 +91,17 @@ internal sealed partial class RankerExecutor(TimeSpan pacing) : Executor<JudgedB
             .Select(item => byAssessment[item.Assessment])
             .ToList();
 
+        var dropped = message.Items
+            .Where(judged => judged.Assessment.Confidence == Confidence.InsufficientSignal)
+            .Select(judged => judged.Assessment.AccountName)
+            .ToList();
+        if (dropped.Count > 0)
+        {
+            await context.AddEventAsync(new AgentProgressEvent("Ranker", $"Dropped {dropped.Count} with insufficient signal: {string.Join(", ", dropped)}"), cancellationToken);
+        }
+        await context.AddEventAsync(new AgentProgressEvent("Ranker", $"Ordering {ranked.Count} opportunities by qualification - deterministic code, same every run"), cancellationToken);
+        await context.AddEventAsync(new AgentProgressEvent("Ranker",
+            "Order: " + string.Join("  ", ranked.Select((judged, index) => $"{index + 1}.{judged.Assessment.AccountName}"))), cancellationToken);
         await context.SendMessageAsync(new RankedBatch(ranked), cancellationToken);
     }
 }
@@ -82,10 +118,13 @@ internal sealed partial class OperatorExecutor(TimeSpan pacing) : Executor<Ranke
         await Task.Delay(pacing, cancellationToken);
         if (message.Items.Any(judged => judged.HasMissingAxis))
         {
+            var names = string.Join(", ", message.Items.Where(judged => judged.HasMissingAxis).Select(judged => judged.Assessment.AccountName));
+            await context.AddEventAsync(new AgentProgressEvent("Operator", $"Missing BANT axes found - challenging the Thinker once on: {names}"), cancellationToken);
             await context.SendMessageAsync(new ChallengeBatch(message.Items), cancellationToken);
         }
         else
         {
+            await context.AddEventAsync(new AgentProgressEvent("Operator", "No Missing axes to question - going straight to actions"), cancellationToken);
             await context.SendMessageAsync(new ChallengedBatch(message.Items), cancellationToken);
         }
     }
@@ -100,11 +139,11 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
     public override async ValueTask HandleAsync(ChallengeBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
-        var revised = await Task.WhenAll(message.Items.Select(judged => ReassessAsync(judged, cancellationToken)));
+        var revised = await Task.WhenAll(message.Items.Select(judged => ReassessAsync(judged, context, cancellationToken)));
         await context.SendMessageAsync(new ChallengedBatch(revised), cancellationToken);
     }
 
-    async Task<Judged> ReassessAsync(Judged judged, CancellationToken cancellationToken)
+    async Task<Judged> ReassessAsync(Judged judged, IWorkflowContext context, CancellationToken cancellationToken)
     {
         if (!judged.HasMissingAxis)
         {
@@ -120,6 +159,8 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
             {{JsonSerializer.Serialize(judged.Context)}}
             """;
         var assessment = await StructuredAgent.RunAsync<OpportunityAssessment>(thinker, input, cancellationToken);
+        await context.AddEventAsync(new AgentThoughtEvent("Thinker",
+            $"Re-examined {assessment.AccountName}: {assessment.Archetype} (BANT {assessment.Bant.Score}/4)"), cancellationToken);
         return judged with { Assessment = assessment };
     }
 }
@@ -134,8 +175,9 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
     public override async ValueTask HandleAsync(ChallengedBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
+        await context.AddEventAsync(new AgentProgressEvent("Operator", $"Preparing next best actions for {message.Items.Count} opportunities - three max each, tied to the evidence"), cancellationToken);
         var prepared = await Task.WhenAll(
-            message.Items.Select((judged, index) => PrepareAsync(judged, index + 1, cancellationToken)));
+            message.Items.Select((judged, index) => PrepareAndTraceAsync(judged, index + 1, context, cancellationToken)));
 
         var recommendations = new List<RankedRecommendation>();
         var proposals = new List<ActionProposal>();
@@ -153,7 +195,18 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
             }
         }
 
+        await context.AddEventAsync(new AgentProgressEvent("Operator", $"{proposals.Count} actions prepared - sending to the approval gate"), cancellationToken);
         await context.SendMessageAsync(new ApprovalRequest(recommendations, proposals), cancellationToken);
+    }
+
+    async Task<RankedRecommendation> PrepareAndTraceAsync(Judged judged, int rank, IWorkflowContext context, CancellationToken cancellationToken)
+    {
+        var recommendation = await PrepareAsync(judged, rank, cancellationToken);
+        var summary = recommendation.Actions.Count == 0
+            ? "no action proposed"
+            : string.Join("; ", recommendation.Actions.Select(action => $"{action.Type} - {action.Title}"));
+        await context.AddEventAsync(new AgentThoughtEvent("Operator", $"{recommendation.Assessment.AccountName}: {summary}"), cancellationToken);
+        return recommendation;
     }
 
     async Task<RankedRecommendation> PrepareAsync(Judged judged, int rank, CancellationToken cancellationToken)
@@ -175,6 +228,10 @@ internal sealed partial class ExecuteExecutor(WriterTools writer, TimeSpan pacin
     public override async ValueTask HandleAsync(ApprovalDecision message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
+        if (message.Approved.Count > 0)
+        {
+            await context.AddEventAsync(new AgentProgressEvent("Operator", $"Writing {message.Approved.Count} approved action(s) to Dataverse under the writer identity"), cancellationToken);
+        }
 
         var lines = new List<string>();
         foreach (var proposal in message.Approved)

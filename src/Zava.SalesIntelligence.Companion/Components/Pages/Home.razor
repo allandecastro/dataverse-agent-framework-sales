@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using Microsoft.Agents.AI.Workflows
 @using Zava.SalesIntelligence.Agents.Contracts
+@using Zava.SalesIntelligence.Workflow
 @inject WorkflowFactory Factory
 
 <PageTitle>Zava Sales Intelligence</PageTitle>
@@ -111,10 +112,15 @@
     .log-drawer .close:hover { color: #fff; }
     .log-body { flex: 1; overflow-y: auto; padding: 12px 14px;
         font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; font-size: 12.5px; line-height: 1.6; }
-    .log-row { display: flex; gap: 9px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+    .log-row { display: flex; gap: 9px; padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,.05); align-items: baseline; }
     .log-row .t { color: #808080; flex: 0 0 auto; }
-    .log-row .d { color: #5a7fb0; flex: 0 0 auto; min-width: 48px; text-align: right; }
-    .log-row .m { color: #e0e0e0; white-space: pre-wrap; word-break: break-word; }
+    .log-row .d { color: #5a7fb0; flex: 0 0 auto; min-width: 46px; text-align: right; }
+    .log-row .ag { flex: 0 0 auto; min-width: 62px; text-align: center; font-weight: 700; font-size: 10.5px;
+        letter-spacing: .03em; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
+    .log-row .ag-Watcher { background: #14314f; color: #79b0ec; } .log-row .ag-Thinker { background: #33245c; color: #bda2f0; }
+    .log-row .ag-Ranker { background: #333; color: #adadad; } .log-row .ag-Operator { background: #143a24; color: #74d59a; }
+    .log-row .m { color: #d6dde8; white-space: pre-wrap; word-break: break-word; }
+    .log-row.thought .m { color: #9fd0ff; font-style: italic; }
     .log-row.err .m { color: #ff9d9d; }
     .log-empty { color: #808080; padding: 12px 2px; }
 
@@ -247,9 +253,13 @@
         }
         @foreach (var entry in _log)
         {
-            <div class="log-row @(entry.Error ? "err" : "")">
+            <div class="log-row @entry.Kind @(entry.Error ? "err" : "")">
                 <span class="t">@entry.Time</span>
                 <span class="d">+@entry.Elapsed</span>
+                @if (entry.Agent is not null)
+                {
+                    <span class="ag ag-@entry.Agent">@entry.Agent</span>
+                }
                 <span class="m">@entry.Text</span>
             </div>
         }
@@ -307,14 +317,21 @@
     bool _showLog;
     readonly List<LogEntry> _log = new();
     readonly System.Diagnostics.Stopwatch _clock = new();
-    record LogEntry(string Time, string Elapsed, string Text, bool Error);
+    // Kind: "system" (companion's own lifecycle), "progress" (deterministic work from an
+    // executor), "thought" (a model's output). Agent names the squad member when known.
+    record LogEntry(string Time, string Elapsed, string Text, bool Error, string? Agent, string Kind);
 
-    void Log(string message, bool error = false) =>
+    void Log(string message, bool error = false) => Add(message, error, null, "system");
+    void LogTrace(string agent, string message, string kind) => Add(message, false, agent, kind);
+
+    void Add(string message, bool error, string? agent, string kind) =>
         _log.Add(new LogEntry(
             DateTimeOffset.Now.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
             _clock.Elapsed.TotalSeconds.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + "s",
             message,
-            error));
+            error,
+            agent,
+            kind));
 
     async Task RunAsync()
     {
@@ -343,10 +360,22 @@
             {
                 switch (workflowEvent)
                 {
+                    // Deterministic work and model output stream in as they happen - which agent
+                    // is doing what, the Dataverse reads, the archetype calls, the actions. Two
+                    // event types, two code paths (see CLAUDE.md).
+                    case AgentProgressEvent progress:
+                        LogTrace(progress.Agent, progress.Message, "progress");
+                        await InvokeAsync(StateHasChanged);
+                        break;
+
+                    case AgentThoughtEvent thought:
+                        LogTrace(thought.Agent, thought.Text, "thought");
+                        await InvokeAsync(StateHasChanged);
+                        break;
+
                     case ExecutorCompletedEvent completed:
                         _thread.Add(Stages.GetValueOrDefault(completed.ExecutorId, completed.ExecutorId));
                         _active = Working.GetValueOrDefault(completed.ExecutorId);
-                        Log($"superstep complete: {completed.ExecutorId}");
                         await InvokeAsync(StateHasChanged);
                         break;
 
