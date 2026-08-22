@@ -20,6 +20,16 @@ static class StructuredAgent
     {
         var options = new AgentRunOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema<T>() };
         var response = await agent.RunAsync(input, options: options, cancellationToken: cancellationToken);
-        return JsonSerializer.Deserialize<T>(response.Text, Options)!;
+
+        // The schema constrains the model, but a truncated or empty response still happens.
+        // Fail with a clear message rather than an opaque JsonException or a laundered null
+        // that surfaces as an NRE two stages later.
+        if (string.IsNullOrWhiteSpace(response.Text))
+        {
+            throw new InvalidOperationException($"The {agent.Name} agent returned an empty response for a {typeof(T).Name} result.");
+        }
+
+        return JsonSerializer.Deserialize<T>(response.Text, Options)
+            ?? throw new InvalidOperationException($"The {agent.Name} agent's response did not deserialize to a {typeof(T).Name}.");
     }
 }
