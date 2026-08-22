@@ -1,11 +1,15 @@
+#pragma warning disable MAAIW001 // Magentic workflow types are experimental in Agent Framework 1.17.
+
 using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Agents.AI.Workflows.Specialized.Magentic;
 using Microsoft.Extensions.AI;
 using OpenAI.Chat;
 using Zava.SalesIntelligence.Dataverse;
 using Zava.SalesIntelligence.Dataverse.Tools;
+using ChatMessage = Microsoft.Extensions.AI.ChatMessage;
 
 // The same squad, autonomous orchestration. Instead of the fixed workflow graph, a Magentic
 // manager plans the work and delegates to the participant agents on its own, round by round,
@@ -75,27 +79,54 @@ var workflow = AgentWorkflowBuilder.CreateMagenticBuilderWith(manager)
 Console.WriteLine("Handing the question to a Magentic manager and letting it orchestrate...");
 Console.WriteLine();
 
-// KNOWN LIMITATION (MAF 1.17): driving this Magentic workflow with a single
-// RunStreamingAsync makes the orchestrator run one superstep and stop - it does not
-// delegate to the participants or yield a final answer. Adding participant descriptions
-// and disabling plan sign-off did not change it. The multi-round Magentic driver contract
-// (how to pump the orchestrator through plan -> delegate -> ledger -> answer) needs an
-// official reference before this sample produces a recommendation. Left as a draft. See
-// the README. The event handler below is what the finished sample would print.
-var run = await InProcessExecution.RunStreamingAsync(workflow, "What should I focus on this week?");
+// The Magentic driver: hand the goal in as a chat message, then send a TurnToken to pump the
+// orchestrator through its rounds. The TurnToken is what makes it delegate - without it the
+// orchestrator runs one superstep and stops. The terminal WorkflowOutputEvent carries the
+// manager's synthesized answer as the conversation transcript.
+await using var run = await InProcessExecution.RunStreamingAsync(
+    workflow, new List<ChatMessage> { new(ChatRole.User, "What should I focus on this week?") });
+await run.TrySendMessageAsync(new TurnToken(emitEvents: true));
+
+string? lastResponseId = null;
+WorkflowOutputEvent? finalOutput = null;
 await foreach (var evt in run.WatchStreamAsync())
 {
     switch (evt)
     {
-        case ExecutorInvokedEvent invoked:
-            Console.WriteLine($"  -> {invoked.ExecutorId}");
+        case AgentResponseUpdateEvent update:
+            // Stream each participant's text, printing the speaker once per contiguous turn.
+            var responseId = update.Update.ResponseId ?? update.Update.MessageId ?? update.ExecutorId;
+            if (!string.Equals(responseId, lastResponseId, StringComparison.Ordinal))
+            {
+                Console.WriteLine();
+                Console.Write($"- {update.ExecutorId}: ");
+                lastResponseId = responseId;
+            }
+            Console.Write(update.Update.Text);
             break;
-        case WorkflowOutputEvent output:
-            Console.WriteLine();
-            Console.WriteLine("=== Final recommendation ===");
-            Console.WriteLine(output.Data);
+
+        case MagenticPlanCreatedEvent plan:
+            Console.WriteLine($"\n[plan]\n{plan.FullTaskLedger.Text}");
+            break;
+
+        case MagenticProgressLedgerUpdatedEvent progress:
+            Console.WriteLine($"\n[ledger] next={progress.ProgressLedger.NextSpeaker} satisfied={progress.ProgressLedger.IsRequestSatisfied}");
+            break;
+
+        case WorkflowOutputEvent output when output.Is<List<ChatMessage>>():
+            finalOutput = output;
+            break;
+
+        case WorkflowErrorEvent error:
+            Console.Error.WriteLine(error.Exception?.ToString() ?? "workflow error");
             break;
     }
+}
+
+if (finalOutput?.As<List<ChatMessage>>() is { Count: > 0 } transcript)
+{
+    Console.WriteLine("\n\n=== Final recommendation ===\n");
+    Console.WriteLine(transcript[^1].Text);
 }
 
 static string Require(string name) =>
