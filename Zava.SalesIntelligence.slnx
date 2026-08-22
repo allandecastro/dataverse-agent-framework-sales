@@ -11,5 +11,6 @@
   </Folder>
   <Folder Name="/samples/">
     <Project Path="samples/single-agent/Zava.SalesIntelligence.Samples.SingleAgent.csproj" />
+    <Project Path="samples/magentic/Zava.SalesIntelligence.Samples.Magentic.csproj" />
   </Folder>
 </Solution>
