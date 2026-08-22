@@ -240,7 +240,7 @@
         { "key": "act-008-call", "type": "phonecall", "subject": "Budget confirmation", "dateOffsetDays": -48, "contactKey": "ct-008-carl", "description": "Carl confirmed the budget line." }
       ],
       "notes": [
-        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia wants to lift repeat purchase rate, currently at 18 percent. Carl confirmed 90k is approved for the program this year." }
+        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia wants to lift repeat purchase rate, currently at 18 percent, and asked for a rollout proposal after the design session. Carl confirmed 90k is approved for the program this year. Nothing has moved since - no proposal sent and no follow up booked." }
       ]
     },
     {
@@ -299,7 +299,7 @@
         { "key": "act-010-call", "type": "phonecall", "subject": "Technical questions", "dateOffsetDays": -9, "contactKey": "ct-010-devon", "description": "Devon asked integration questions." }
       ],
       "notes": [
-        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Picking errors run about 4 percent and cost roughly 40k a quarter in reshipments. A ballpark of 150k was floated, but no budget owner is named and there is no decision date." }
+        { "key": "note-010-demo", "regardingKey": "opp-010", "dateOffsetDays": -13, "subject": "Demo recap", "body": "Picking errors run about 4 percent and cost roughly 40k a quarter in reshipments, so the need is real. The opportunity sits at Propose, but only the warehouse and IT users are engaged - no economic buyer has been identified, the 150k figure is an unowned ballpark, and there is no decision date. It is ahead of where the qualification actually stands." }
       ]
     }
   ]
