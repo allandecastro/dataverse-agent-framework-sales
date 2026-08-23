@@ -6,6 +6,7 @@
 @using Zava.SalesIntelligence.Agents.Contracts
 @using Zava.SalesIntelligence.Workflow
 @inject WorkflowFactory Factory
+@inject IJSRuntime JS
 
 <PageTitle>Zava Sales Intelligence</PageTitle>
 
@@ -54,6 +55,15 @@
     .ask-input { width: 100%; font-size: 14px; padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 8px;
         font-family: inherit; color: var(--ink); background: #fff; }
     .ask-input:focus { outline: none; border-color: var(--brand); }
+    .ask-row { display: flex; gap: 8px; align-items: center; }
+    .ask-row .ask-input { flex: 1; }
+    .mic { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--stroke);
+        background: #fff; color: var(--brand); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+        transition: background .12s var(--ease), color .12s var(--ease), border-color .12s var(--ease); }
+    .mic:hover:not(:disabled) { background: var(--brand-tint); }
+    .mic:disabled { opacity: .5; cursor: default; }
+    .mic.on { background: var(--slip); color: #fff; border-color: var(--slip); animation: pulse 1s ease-in-out infinite; }
+    @@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(197,15,31,.5); } 50% { box-shadow: 0 0 0 7px rgba(197,15,31,0); } }
     .step { position: relative; display: flex; gap: 12px; align-items: flex-start; background: var(--card);
         border: 1px solid var(--stroke); border-radius: 8px; padding: 12px 15px; font-size: 14px; line-height: 1.45;
         color: var(--ink-2); box-shadow: var(--shadow-2); animation: rise .3s var(--ease) both; }
@@ -177,9 +187,16 @@
                     {
                         <div class="qa"><div class="a thinking"><span class="spinner sm"></span> Thinking...</div></div>
                     }
-                    <form @onsubmit="Ask" @onsubmit:preventDefault="true">
+                    <form class="ask-row" @onsubmit="Ask" @onsubmit:preventDefault="true">
                         <input class="ask-input" @bind="_question" @bind:event="oninput"
-                               placeholder="Why is Litware ready?" disabled="@_asking" />
+                               placeholder="@(_listening ? "Listening..." : "Why is Litware ready?")"
+                               disabled="@(_asking || _listening)" />
+                        <button type="button" class="mic @(_listening ? "on" : "")" @onclick="AskByVoice"
+                                disabled="@(_asking || _listening)" title="Push to talk" aria-label="Push to talk">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                                <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
+                            </svg>
+                        </button>
                     </form>
                 </div>
             }
@@ -345,6 +362,7 @@
     readonly List<(string Question, string Answer)> _qa = new();
     string _question = "";
     bool _asking;
+    bool _listening;
     readonly HashSet<int> _selected = new();
     TaskCompletionSource<ApprovalDecision>? _pending;
     WriteReport? _report;
@@ -478,19 +496,26 @@
         }
     }
 
-    async Task Ask()
+    // The typed path: ask what is in the input.
+    Task Ask() => RunAsk(_question);
+
+    // Ask one question through the conversation, render the answer, and apply any command it
+    // carried. Returns the answer text so the voice path can read it aloud.
+    async Task<string> RunAsk(string raw)
     {
-        var question = _question.Trim();
+        var question = raw.Trim();
         if (question.Length == 0 || _chat is null || _asking)
         {
-            return;
+            return "";
         }
         _question = "";
         _asking = true;
         await InvokeAsync(StateHasChanged);
+        var answer = "";
         try
         {
             var result = await _chat.AskAsync(question);
+            answer = result.Answer;
             _qa.Add((question, result.Answer));
             // Apply the conversation's intent here, on the dispatcher - the tools only recorded
             // it. Selection and approval go through the same state the checkboxes and buttons use.
@@ -498,11 +523,45 @@
         }
         catch (Exception ex)
         {
-            _qa.Add((question, $"(error: {ex.Message})"));
+            answer = $"(error: {ex.Message})";
+            _qa.Add((question, answer));
         }
         finally
         {
             _asking = false;
+            await InvokeAsync(StateHasChanged);
+        }
+        return answer;
+    }
+
+    // The voice path: listen for one utterance, ask it, and read the answer aloud (push to
+    // talk). Speech only transcribes and synthesises - the conversation stays the brain.
+    async Task AskByVoice()
+    {
+        if (_chat is null || _asking || _listening)
+        {
+            return;
+        }
+        _listening = true;
+        await InvokeAsync(StateHasChanged);
+        try
+        {
+            var text = await JS.InvokeAsync<string>("voiceInterop.recognizeOnce");
+            _listening = false;
+            await InvokeAsync(StateHasChanged);
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                var answer = await RunAsk(text);
+                await JS.InvokeVoidAsync("voiceInterop.speak", answer);
+            }
+        }
+        catch (Exception ex)
+        {
+            _qa.Add(("(voice)", $"(voice error: {ex.Message})"));
+        }
+        finally
+        {
+            _listening = false;
             await InvokeAsync(StateHasChanged);
         }
     }

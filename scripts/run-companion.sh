@@ -16,6 +16,11 @@ export ZAVA_OPENAI_REASONING_DEPLOYMENT="gpt-5.6-sol"
 # so the agent keeps its own least-privilege identity - no impersonation, no escalation.
 export ZAVA_SELLER_USER_ID="6c20a779-e08b-f111-8076-002248a0acb3"
 
+# Azure Speech (voice) on the same Foundry resource. A region and a resource id, not secrets;
+# the browser gets a short-lived keyless token from /api/speech-token.
+export ZAVA_SPEECH_REGION="westeurope"
+export ZAVA_SPEECH_RESOURCE_ID="/subscriptions/fddf3b3b-af6b-4b63-875d-354253aebed4/resourceGroups/rg-zava-salesintel-demo/providers/Microsoft.CognitiveServices/accounts/aif-zava-salesintel"
+
 # Agent identity secrets (git-ignored), written by scripts/provision.ps1: the Watcher reads
 # under the reader app user, writes run under the writer app user. Without the file both fall
 # back to the interactive az login.
