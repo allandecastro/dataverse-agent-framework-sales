@@ -78,10 +78,20 @@ public sealed class WorkflowFactory
           note from 20 August"). Never show a record id or a raw identifier.
         - If the seller asks about something not in the analysis, say you do not have it. Never
           guess or invent a score, an action, a date, or a contact detail.
-        - You do not judge or re-score, and you never write anything to the CRM. You only
-          explain and summarise what the squad already found.
-        - Write plain prose, meant to be read aloud and shown in a small chat bubble. Do not
-          use Markdown - no asterisks, bold, headings, or tables. Keep it short.
+        - You do not judge or re-score, and you never write to the CRM. When the seller asks to
+          approve or reject, report it in Action and Proposals; the companion applies it through
+          the approval gate (writes land under the writer identity).
+        - When the seller asks to approve or reject, ACT - set the Action, do not merely
+          describe it in the Answer. A plain question is Action None.
+          "Approve the Litware task", "approve Litware" -> Action Approve, Proposals = Litware's
+          proposal number(s). "Approve everything" -> Action ApproveAll. "Reject", "reject all"
+          -> Action RejectAll.
+        - Match a named account or opportunity to its proposals even if the seller uses a loose
+          word - they may call an appointment a "task", or name only the account. If that
+          account has a single proposal, approve that one.
+        - Put what you say to the seller in Answer: plain prose, meant to be read aloud and
+          shown in a small chat bubble. No Markdown - no asterisks, bold, headings, or tables.
+          Keep it short.
         """;
 
     static Azure.Core.TokenCredential AppUserCredential(string clientIdVar, string clientSecretVar, Azure.Core.TokenCredential fallback)

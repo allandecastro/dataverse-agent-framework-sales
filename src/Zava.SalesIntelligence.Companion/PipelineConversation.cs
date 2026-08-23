@@ -1,23 +1,42 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
+using Microsoft.Extensions.AI;
 
 namespace Zava.SalesIntelligence.Companion;
 
-// The squad's spokesperson: answers the seller's questions about the current run, grounded
-// only in what the squad produced (the analysis is baked into the agent's instructions).
-//
-// This is a deliberately thin, bounded layer - the contract of what the conversation may do:
-//   - it explains, filters, and summarises the run's assessments and prepared actions;
-//   - it cites the evidence the Thinker cited;
-//   - it does NOT judge, re-score, query Dataverse, or write anything.
-//
-// Read-only for now. TODO (step 2): bounded commands - approve/reject a proposal through the
-// existing approval gate (never a new write surface), which would give the conversation the
-// same authority as the approval buttons and nothing more.
+// What the seller asked to do with the approval gate. None for a plain question.
+public enum TurnAction
+{
+    None,
+    Approve,     // approve the listed proposals
+    ApproveAll,
+    RejectAll,
+}
+
+// One turn of the conversation. The model always returns this shape (structured output), so a
+// command is never missed the way an optional tool call can be: the answer to show, plus what
+// the seller asked to do and which proposals it concerns.
+public sealed record ConversationTurn(string Answer, TurnAction Action, IReadOnlyList<int> Proposals);
+
+// The squad's spokesperson: answers the seller's questions grounded only in the current run,
+// and reports any approve/reject the seller asked for. The companion applies that through the
+// existing approval gate - the conversation itself never writes, never reaches Dataverse, and
+// never touches anything outside this run's proposals.
 public sealed class PipelineConversation(AIAgent agent)
 {
-    public async Task<string> AskAsync(string question, CancellationToken cancellationToken = default)
+    static readonly JsonSerializerOptions Options = new(JsonSerializerOptions.Web)
     {
-        var response = await agent.RunAsync(question, cancellationToken: cancellationToken);
-        return response.Text;
+        Converters = { new JsonStringEnumConverter() },
+    };
+
+    public async Task<ConversationTurn> AskAsync(string question, CancellationToken cancellationToken = default)
+    {
+        var options = new AgentRunOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema<ConversationTurn>() };
+        var response = await agent.RunAsync(question, options: options, cancellationToken: cancellationToken);
+        return string.IsNullOrWhiteSpace(response.Text)
+            ? new ConversationTurn("I could not answer that.", TurnAction.None, [])
+            : JsonSerializer.Deserialize<ConversationTurn>(response.Text, Options)
+              ?? new ConversationTurn("I could not answer that.", TurnAction.None, []);
     }
 }

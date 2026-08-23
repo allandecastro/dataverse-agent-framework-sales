@@ -490,8 +490,11 @@
         await InvokeAsync(StateHasChanged);
         try
         {
-            var answer = await _chat.AskAsync(question);
-            _qa.Add((question, answer));
+            var result = await _chat.AskAsync(question);
+            _qa.Add((question, result.Answer));
+            // Apply the conversation's intent here, on the dispatcher - the tools only recorded
+            // it. Selection and approval go through the same state the checkboxes and buttons use.
+            ApplyCommands(result);
         }
         catch (Exception ex)
         {
@@ -501,6 +504,31 @@
         {
             _asking = false;
             await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    // The conversation asked to select and/or approve. It can only touch this run's proposals
+    // and the existing gate - the same authority as the checkboxes and the approve/reject buttons.
+    void ApplyCommands(ConversationTurn turn)
+    {
+        foreach (var number in turn.Proposals)
+        {
+            if (_proposals.Any(proposal => proposal.Number == number))
+            {
+                _selected.Add(number);
+            }
+        }
+        switch (turn.Action)
+        {
+            case TurnAction.Approve:
+                _pending?.SetResult(new ApprovalDecision(_proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList()));
+                break;
+            case TurnAction.ApproveAll:
+                _pending?.SetResult(new ApprovalDecision(_proposals));
+                break;
+            case TurnAction.RejectAll:
+                _pending?.SetResult(new ApprovalDecision([]));
+                break;
         }
     }
 
@@ -533,7 +561,7 @@
                         },
                     };
                 }),
-                actions = _proposals.Select(proposal => new { proposal.OpportunityName, proposal.Action.Type, proposal.Action.Title }),
+                actions = _proposals.Select(proposal => new { proposal.Number, proposal.OpportunityName, proposal.Action.Type, proposal.Action.Title }),
             },
             new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } });
 
