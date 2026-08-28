@@ -39,8 +39,23 @@ the source. If you cannot cite it, you did not find it, and the element is Missi
 - **Competition** - a competitor named in the evidence ("Contoso"). Named and active is
   Confirmed; a hint is Partial; none found is Missing (not a weakness, just unknown).
 
+## The archetype
+
+Assign one archetype from the eight elements - this is the AE read that drives the board, judged
+from MEDDPICC, not from BANT:
+
+- **ReadyToClose** - the deal is well qualified and moving to signature: Economic buyer, Metrics or
+  Pain, and Decision/Paper process are confirmed, a Champion is engaged, and no active Competition
+  threatens it.
+- **Slipping** - it was qualified but is being lost: an active Competition is named, or the
+  Decision/Paper process has stalled (a budget moved, a sponsor left), despite earlier progress.
+- **AtRisk** - the stage is ahead of the evidence: thin qualification, with no Economic buyer and no
+  Metrics or Pain to anchor it. Under-qualified rather than slipping.
+- **Reconnect** - qualified but quiet: some elements are confirmed, but there is no engaged Champion
+  and no customer-owned date, so the deal has gone cold.
+
 ## Output
 
-Return the MeddpiccScorecard schema - the eight elements, each with Status, a one-line
-Reasoning written to be read aloud, and its Evidence. Nothing else: no preamble, no markdown,
-no commentary outside the schema.
+Return the MeddpiccScorecard schema - the eight elements (each with Status, a one-line Reasoning to
+read aloud, and its Evidence), the Archetype, and a Rationale of at most two sentences written to be
+read aloud. Nothing else: no preamble, no markdown, no commentary outside the schema.

@@ -15,7 +15,11 @@ public record MeddpiccScorecard(
     MeddpiccElement PaperProcess,
     MeddpiccElement IdentifyPain,
     MeddpiccElement Champion,
-    MeddpiccElement Competition)
+    MeddpiccElement Competition,
+    // In the AE persona MEDDPICC drives the board: the scorer assigns the archetype from the eight
+    // elements (not from BANT) and a one-line rationale to read aloud.
+    Archetype Archetype,
+    string Rationale)
 {
     [JsonIgnore]
     public int Score => new[]

@@ -27,11 +27,18 @@
     /* Font stack on body so fixed elements outside .app (the composer, the log drawer) inherit it too. */
     body { background: var(--canvas); min-height: 100vh;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; }
-    .app { color: var(--ink); max-width: 1200px; margin: 0 auto; padding: 40px 32px 180px;
+    /* App shell: header on top; below it a body split into the scrollable board (.main) and a
+       right sidebar (.side) that holds the voice + conversation with its own scroll - so a long
+       conversation never pushes the board, and the voice never overlaps the actions. */
+    .app { color: var(--ink); height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+    .body { flex: 1 1 auto; display: flex; min-height: 0; overflow: hidden; }
+    .main { flex: 1 1 auto; min-width: 0; overflow-y: auto; padding: 28px 32px 40px; }
+    .side { flex: 0 0 clamp(300px, 26vw, 400px); border-left: 1px solid var(--stroke);
+        background: var(--canvas); display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 
-    .head { display: flex; align-items: center; justify-content: space-between; gap: 24px;
-        padding-bottom: 26px; margin-bottom: 34px; border-bottom: 1px solid var(--stroke); }
+    .head { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 24px;
+        padding: 22px 32px 18px; border-bottom: 1px solid var(--stroke); }
     .head .brand { display: inline-flex; align-items: center; gap: 9px; font-size: 11.5px; letter-spacing: .1em;
         text-transform: uppercase; color: var(--muted); font-weight: 600; }
     .head .brand::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--brand); }
@@ -61,10 +68,11 @@
     .mic.on { background: var(--slip); color: #fff; border-color: var(--slip); animation: pulse 1s ease-in-out infinite; }
     @@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(197,15,31,.5); } 50% { box-shadow: 0 0 0 7px rgba(197,15,31,0); } }
 
-    /* The pinned companion composer: the always-in-reach surface to talk to the squad. */
-    .composer { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 40;
-        width: min(660px, 92vw); display: flex; flex-direction: column; gap: 12px; }
-    .composer-log { display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto; padding: 2px; }
+    /* The composer fills the right sidebar: the conversation grows and scrolls, the mic bar stays
+       pinned at the bottom (flex-end keeps it there even before any conversation). */
+    .composer { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end;
+        gap: 12px; padding: 20px; }
+    .composer-log { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; padding: 2px; }
     .composer .qa { background: var(--card); border: 1px solid var(--stroke); border-radius: 14px;
         padding: 11px 15px; box-shadow: var(--shadow-8); animation: rise .22s var(--ease) both; }
     .composer .q { font-size: 12.5px; font-weight: 650; color: var(--muted); margin-bottom: 4px; }
@@ -77,8 +85,8 @@
         border-radius: 14px; padding: 11px 15px; box-shadow: var(--shadow-8); animation: rise .22s var(--ease) both; }
     .composer-done .cd-row { display: flex; gap: 9px; align-items: baseline; font-size: 14px; color: var(--ink-2); }
     .composer-done .cd-row::before { content: "✓"; color: var(--ready); font-weight: 800; }
-    .composer-bar { display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--stroke);
-        border-radius: 999px; padding: 8px 8px 8px 20px; box-shadow: var(--shadow-16); }
+    .composer-bar { flex: 0 0 auto; display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--stroke);
+        border-radius: 999px; padding: 8px 8px 8px 20px; box-shadow: var(--shadow-8); }
     .composer-bar .ask-input { flex: 1; border: 0; padding: 8px 0; font-size: 15px; background: transparent; color: var(--ink); }
     .composer-bar .ask-input:focus { outline: none; }
     .composer-bar .mic { width: 44px; height: 44px; border-radius: 999px; border-color: var(--brand);
@@ -110,8 +118,10 @@
         color: var(--ink); transition: background .12s var(--ease), border-color .12s var(--ease); }
     .acct:hover { background: var(--hover); border-color: var(--stroke); }
     .acct:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-    .acct .bant { font-size: 11px; font-weight: 700; color: #fff; border-radius: 999px; padding: 2px 8px;
-        letter-spacing: .01em; background: var(--faint); }
+    /* The name flexes and truncates; the badge (wider for "MEDDPICC 5/8") never shrinks or wraps. */
+    .acct > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .acct .bant { flex: 0 0 auto; white-space: nowrap; font-size: 11px; font-weight: 700; color: #fff;
+        border-radius: 999px; padding: 2px 8px; letter-spacing: .01em; background: var(--faint); }
     .acct .bant.b4 { background: var(--ready); } .acct .bant.b3 { background: var(--teal); }
     .acct .bant.b2 { background: var(--risk); } .acct .bant.b1 { background: var(--slip); }
 
@@ -198,13 +208,17 @@
         .layout { grid-template-columns: 1fr; }
         .cards { grid-template-columns: repeat(2, 1fr); }
     }
+    @@media (max-width: 1000px) {
+        /* Stack the sidebar under the board so both keep their own scroll on a narrow screen. */
+        .body { flex-direction: column; }
+        .side { flex: 0 0 auto; max-height: 45vh; border-left: 0; border-top: 1px solid var(--stroke); }
+    }
     @@media (max-width: 620px) {
-        .app { padding: 26px 16px 180px; }
-        .head { flex-wrap: wrap; gap: 14px; }
+        .main { padding: 20px 16px 28px; }
+        .head { flex-wrap: wrap; gap: 14px; padding: 18px 16px 14px; }
         .head h1 { font-size: 24px; }
         .cards { grid-template-columns: 1fr; }
         .panel { padding: 20px 18px; }
-        .composer { bottom: 14px; width: 94vw; }
     }
 </style>
 
@@ -253,6 +267,8 @@
         </div>
     </div>
 
+    <div class="body">
+    <div class="main">
     <div class="layout">
         <div class="thread" aria-live="polite">
             @if (_thread.Count > 0)
@@ -272,13 +288,13 @@
         <div class="cards">
             @foreach (var archetype in Cards)
             {
-                var accounts = _recommendations.Where(r => r.Assessment.Archetype == archetype).ToList();
+                var accounts = _recommendations.Where(r => ArchetypeOf(r) == archetype).ToList();
                 <div class="col @archetype">
                     <header>@Label(archetype) <span class="count">@accounts.Count</span></header>
                     <div class="body">
                         @if (accounts.Count == 0)
                         {
-                            <div class="empty">No accounts</div>
+                            <div class="empty">No opportunities</div>
                         }
                         @foreach (var recommendation in accounts)
                         {
@@ -307,7 +323,7 @@
                 <h2>@_evidence.Assessment.AccountName</h2>
                 <button type="button" class="panel-close" @onclick="() => _evidence = null" aria-label="Close evidence">&times;</button>
             </div>
-            <p class="sub">@_evidence.Assessment.Rationale</p>
+            <p class="sub">@(_evidence.Meddpicc?.Rationale ?? _evidence.Assessment.Rationale)</p>
             @if (_evidence.Meddpicc is { } scorecard)
             {
                 @* AE persona: the MEDDPICC read. The BANT triage still drove the archetype/actions. *@
@@ -362,11 +378,11 @@
         </div>
     }
 
-    @if (_report is not null)
+    @if (_writtenLive.Count > 0 || _report is not null)
     {
         <div class="panel done">
-            <h2>Done</h2>
-            @foreach (var line in _report.Lines)
+            <h2>@(_report is null ? "Written so far" : "Done")</h2>
+            @foreach (var line in _writtenLive)
             {
                 var link = RecordLink(line);
                 <div class="written">
@@ -377,14 +393,19 @@
                     }
                 </div>
             }
+            @if (_report is not null && _writtenLive.Count == 0)
+            {
+                <div class="written"><span>Nothing written.</span></div>
+            }
         </div>
     }
-</div>
+    </div>@* end .main (the scrollable board) *@
 
-@* The companion's voice-first composer: pinned, centred, always in reach once the run is in.
-   The mic is the primary action; the input is the fallback. This is the "talk to it" surface. *@
-@if (_chat is not null)
-{
+    @* The voice + conversation live in a right sidebar with their own scroll, so a long
+       conversation never pushes the board around. The mic is the primary action. *@
+    @if (_chat is not null)
+    {
+    <aside class="side">
     <div class="composer">
         @if (_qa.Count > 0 || _asking)
         {
@@ -415,11 +436,11 @@
                 }
             </div>
         }
-        @* Write confirmation right where the seller is looking, with a link straight to each record. *@
-        @if (_report is not null)
+        @* Write confirmation right where the seller is looking, live as each record lands. *@
+        @if (_writtenLive.Count > 0)
         {
             <div class="composer-done">
-                @foreach (var line in _report.Lines)
+                @foreach (var line in _writtenLive)
                 {
                     var link = RecordLink(line);
                     <div class="cd-row">
@@ -463,7 +484,10 @@
             }
         </form>
     </div>
-}
+    </aside>
+    }
+    </div>@* end .body *@
+</div>@* end .app (shell) *@
 
 <div class="log-drawer @(_showLog ? "open" : "")" inert="@(!_showLog)" aria-hidden="@(_showLog ? "false" : "true")">
     <header>
@@ -528,6 +552,11 @@
     // MEDDPICC runs 0-8; colour the badge on the same cold-to-closeable scale as BANT.
     static string MeddpiccClass(int score) => score >= 6 ? "b4" : score >= 4 ? "b3" : score >= 2 ? "b2" : "b1";
 
+    // The archetype that drives the board: in an AE run the MEDDPICC scorer assigns it; otherwise
+    // the BANT archetype does. Keyed off the scorecard's presence, so it matches what was run.
+    static Archetype ArchetypeOf(RankedRecommendation recommendation) =>
+        recommendation.Meddpicc?.Archetype ?? recommendation.Assessment.Archetype;
+
     bool _running;
     Persona _persona = Persona.Sdr;   // the qualification lens; SDR = BANT triage, AE = + MEDDPICC read
     Persona? _ranPersona;             // the persona the current results were built under (null before any run)
@@ -560,6 +589,7 @@
     readonly HashSet<int> _selected = new();
     TaskCompletionSource<ApprovalDecision>? _pending;
     WriteReport? _report;
+    readonly List<WriteResult> _writtenLive = new();   // records as they land, for the live Open-record links
     RankedRecommendation? _evidence;
 
     // The activity log: the raw event stream behind the dialogue, with timings and full
@@ -603,6 +633,7 @@
         _thread.Clear();
         _log.Clear();
         _report = null;
+        _writtenLive.Clear();
         _evidence = null;
         _recommendations = [];
         _proposals = [];
@@ -647,6 +678,14 @@
                         await InvokeAsync(StateHasChanged);
                         break;
 
+                    case AgentWriteEvent write:
+                        // A record just landed in Dataverse - show it (and its Open record link) live,
+                        // as it happens, rather than waiting for the final report at the end of the gate.
+                        _writtenLive.Add(write.Result);
+                        LogTrace("Operator", write.Result.Message, "progress");
+                        await InvokeAsync(StateHasChanged);
+                        break;
+
                     case ExecutorCompletedEvent completed:
                         // The approval port completes twice (emitting the request, then again on
                         // the response), so skip a label identical to the last to avoid a dupe.
@@ -654,6 +693,12 @@
                         if (_thread.Count == 0 || _thread[^1] != stage)
                         {
                             _thread.Add(stage);
+                        }
+                        // AE persona: the MEDDPICC scorer runs inside the actions stage, so name it
+                        // once the actions are prepared - otherwise the thread only mentions BANT.
+                        if (completed.ExecutorId == "actions" && _persona == Persona.Ae)
+                        {
+                            _thread.Add("MEDDPICC scored and classified each opportunity - the AE board");
                         }
                         _active = Working.GetValueOrDefault(completed.ExecutorId);
                         await InvokeAsync(StateHasChanged);
@@ -783,15 +828,20 @@
             if (!string.IsNullOrWhiteSpace(text))
             {
                 var answer = await RunAsk(text);
-                _speaking = true;
-                await InvokeAsync(StateHasChanged);
-                try
+                // Don't read a technical failure aloud to the audience - RunAsk formats a failed
+                // turn as "(error: ...)". Speak only a real answer.
+                if (!string.IsNullOrWhiteSpace(answer) && !answer.StartsWith("(error", StringComparison.Ordinal))
                 {
-                    await JS.InvokeVoidAsync("voiceInterop.speak", answer);
-                }
-                finally
-                {
-                    _speaking = false;
+                    _speaking = true;
+                    await InvokeAsync(StateHasChanged);
+                    try
+                    {
+                        await JS.InvokeVoidAsync("voiceInterop.speak", answer);
+                    }
+                    finally
+                    {
+                        _speaking = false;
+                    }
                 }
             }
         }
@@ -897,6 +947,8 @@
 
     static object MeddpiccProjection(MeddpiccScorecard s) => new
     {
+        s.Archetype,
+        s.Rationale,
         Metrics = Element(s.Metrics),
         EconomicBuyer = Element(s.EconomicBuyer),
         DecisionCriteria = Element(s.DecisionCriteria),

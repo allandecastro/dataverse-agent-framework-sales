@@ -353,7 +353,11 @@ internal sealed partial class ExecuteExecutor(WriterTools writer, TimeSpan pacin
 
         foreach (var proposal in message.Approved)
         {
-            _written.Add(await ExecuteAsync(proposal, cancellationToken));
+            var result = await ExecuteAsync(proposal, cancellationToken);
+            _written.Add(result);
+            // Surface each write the moment it lands, so the companion can show the record and its
+            // "Open record" link live - not only in the final report at the end of the loop.
+            await context.AddEventAsync(new AgentWriteEvent(result), cancellationToken);
         }
 
         // Another round: re-open the gate with the proposals the seller kept.

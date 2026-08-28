@@ -21,7 +21,8 @@ engaged three times in the last month.
 - Identify pain: **Confirmed** - "their pipeline breaks weekly."
 - Champion: **Confirmed** - Omar engaged three times in a month, "close alignment" on commercials.
 - Competition: **Missing** - no competitor is named in any record.
-- Score: 5/8. Strong on pain, buyer, and process; the gaps are written criteria and the paper trail.
+- Score: 5/8. Archetype: **ReadyToClose**. Rationale: The economic buyer, pain, and decision process
+  are confirmed with a champion engaged and no competitor in play, so the deal is moving to signature.
 
 ## Example 2 - an under-qualified deal
 
@@ -36,5 +37,5 @@ engaged. No decision owner, no metric, no dates beyond the seller's close date.
 - Identify pain: **Partial** - "the team wants to modernise" with no specific problem.
 - Champion: **Missing** - one operational contact, no advocacy in the notes.
 - Competition: **Missing** - none named.
-- Score: 0/8 confirmed. The deal sits at Propose but almost nothing supports it - qualify the
-  buyer and the pain first.
+- Score: 0/8 confirmed. Archetype: **AtRisk**. Rationale: The deal sits at Propose but has no economic
+  buyer and no quantified pain, so the stage is far ahead of the evidence - qualify the buyer first.

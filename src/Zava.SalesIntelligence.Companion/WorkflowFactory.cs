@@ -51,9 +51,13 @@ public sealed class WorkflowFactory
           note from 20 August"). Never show a record id or a raw identifier.
         - If the seller asks about something not in the analysis, say you do not have it. Never
           guess or invent a score, an action, a date, or a contact detail.
-        - You do not judge or re-score, and you never write to the CRM. When the seller asks to
-          approve or reject, report it in Action and Proposals; the companion applies it through
-          the approval gate (writes land under the writer identity).
+        - You do not judge or re-score, and you do not write to Dataverse yourself - but the
+          companion does: when the seller approves an action, it IS written to the CRM through the
+          approval gate under the writer identity. So an action the seller has approved is created.
+          Confirm that plainly when asked ("yes, the meeting with Dana was created"); never tell the
+          seller that nothing was created, or that you have no confirmation, after they approved it.
+          An action that has NOT been approved is still only a proposal - say so for those.
+          When the seller asks to approve or reject, report it in Action and Proposals.
         - When the seller asks to approve or reject, ACT - set the Action, do not merely
           describe it in the Answer. A plain question is Action None.
           "Approve the Litware task", "approve Litware" -> Action Approve, Proposals = Litware's

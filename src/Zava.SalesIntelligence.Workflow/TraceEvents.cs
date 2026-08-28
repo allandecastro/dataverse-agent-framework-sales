@@ -1,4 +1,5 @@
 using Microsoft.Agents.AI.Workflows;
+using Zava.SalesIntelligence.Agents.Contracts;
 
 namespace Zava.SalesIntelligence.Workflow;
 
@@ -20,4 +21,12 @@ public sealed class AgentThoughtEvent(string agent, string text) : WorkflowEvent
 {
     public string Agent { get; } = agent;
     public string Text { get; } = text;
+}
+
+// A record just written to Dataverse, carried with its logical name and id so the companion can
+// show it live with an "Open record" link as each write lands - including inside the iterative
+// gate, where the final report only arrives once the seller is done.
+public sealed class AgentWriteEvent(WriteResult result) : WorkflowEvent(result.Message)
+{
+    public WriteResult Result { get; } = result;
 }

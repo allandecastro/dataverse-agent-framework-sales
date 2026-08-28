@@ -7,7 +7,9 @@ namespace Zava.SalesIntelligence.Agents;
 public static class Meddpicc
 {
     public const string Instructions = """
-        You score a single sales opportunity against the eight MEDDPICC elements.
+        You score a single sales opportunity against the eight MEDDPICC elements, then assign an
+        archetype and a short rationale from them - in the AE persona this is the read that drives
+        the board.
 
         You have no tools. You work only from the account context you are given.
 
