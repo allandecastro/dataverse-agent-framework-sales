@@ -7,12 +7,13 @@
 @using Zava.SalesIntelligence.Workflow
 @inject WorkflowFactory Factory
 @inject IJSRuntime JS
+@implements IDisposable
 
 <PageTitle>Zava Sales Intelligence</PageTitle>
 
 <style>
     :root {
-        --ink: #242424; --ink-2: #424242; --muted: #616161; --faint: #909090;
+        --ink: #242424; --ink-2: #424242; --muted: #616161; --faint: #6e6e6e; /* AA contrast on small text */
         --stroke: #e0e0e0; --stroke-2: #efefef; --hover: #f5f5f5; --card: #ffffff; --canvas: #fafafa;
         --brand: #0f6cbd; --brand-deep: #115ea3; --brand-tint: #eff6fc;
         --slip: #c50f1f; --risk: #bc4b09; --recon: #5b5fc7; --ready: #107c10; --teal: #038387;
@@ -23,9 +24,10 @@
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; }
-    body { background: var(--canvas); min-height: 100vh; }
-    .app { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
-        color: var(--ink); max-width: 1200px; margin: 0 auto; padding: 40px 32px 80px;
+    /* Font stack on body so fixed elements outside .app (the composer, the log drawer) inherit it too. */
+    body { background: var(--canvas); min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif; }
+    .app { color: var(--ink); max-width: 1200px; margin: 0 auto; padding: 40px 32px 180px;
         -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
     .head { display: flex; align-items: center; justify-content: space-between; gap: 24px;
@@ -34,8 +36,9 @@
         text-transform: uppercase; color: var(--muted); font-weight: 600; }
     .head .brand::before { content: ""; width: 8px; height: 8px; border-radius: 3px; background: var(--brand); }
     .head h1 { font-size: 30px; letter-spacing: -.02em; margin: 10px 0 0; font-weight: 600; color: var(--ink); }
-    .run { font-size: 15px; font-weight: 600; padding: 10px 22px; border: 0; border-radius: 8px; color: #fff;
-        background: var(--brand); cursor: pointer; box-shadow: var(--shadow-2); transition: background .12s var(--ease); }
+    .run { display: inline-flex; align-items: center; gap: 7px; font-size: 15px; font-weight: 600; padding: 10px 22px;
+        border: 0; border-radius: 8px; color: #fff; background: var(--brand); cursor: pointer; box-shadow: var(--shadow-2);
+        transition: background .12s var(--ease); }
     .run:hover { background: var(--brand-deep); }
     .working { display: inline-flex; align-items: center; gap: 10px; color: var(--muted); font-weight: 600; font-size: 14.5px; }
     .spinner { width: 16px; height: 16px; border-radius: 50%; border: 2px solid rgba(15,108,189,.2);
@@ -46,17 +49,10 @@
     .thread { display: flex; flex-direction: column; gap: 8px; }
     .thread .lead { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: var(--faint);
         font-weight: 600; padding: 2px 2px 6px; }
-    .ask { display: flex; flex-direction: column; gap: 9px; padding-bottom: 16px; margin-bottom: 8px; border-bottom: 1px solid var(--stroke); }
-    .ask .qa { display: flex; flex-direction: column; gap: 4px; }
-    .ask .q { font-size: 13.5px; font-weight: 650; color: var(--ink); }
-    .ask .q::before { content: "You"; margin-right: 7px; color: var(--faint); font-weight: 700; font-size: 10.5px; text-transform: uppercase; }
-    .ask .a { font-size: 14px; line-height: 1.5; color: var(--recon); background: #f2f3fb; border-radius: 8px; padding: 9px 12px; white-space: pre-wrap; }
-    .ask .a.thinking { color: var(--muted); font-style: italic; display: flex; align-items: center; gap: 8px; background: var(--canvas); }
-    .ask-input { width: 100%; font-size: 14px; padding: 10px 12px; border: 1px solid var(--stroke); border-radius: 8px;
-        font-family: inherit; color: var(--ink); background: #fff; }
-    .ask-input:focus { outline: none; border-color: var(--brand); }
-    .ask-row { display: flex; gap: 8px; align-items: center; }
-    .ask-row .ask-input { flex: 1; }
+    /* The bare input styles the composer reuses; the .ask container/.ask-row rules were removed
+       with the old inline ask block (the composer replaced it). */
+    .ask-input { width: 100%; font-size: 14px; font-family: inherit; color: var(--ink); }
+    .ask-input:focus { outline: none; }
     .mic { flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; border: 1px solid var(--stroke);
         background: #fff; color: var(--brand); cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
         transition: background .12s var(--ease), color .12s var(--ease), border-color .12s var(--ease); }
@@ -64,6 +60,33 @@
     .mic:disabled { opacity: .5; cursor: default; }
     .mic.on { background: var(--slip); color: #fff; border-color: var(--slip); animation: pulse 1s ease-in-out infinite; }
     @@keyframes pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(197,15,31,.5); } 50% { box-shadow: 0 0 0 7px rgba(197,15,31,0); } }
+
+    /* The pinned companion composer: the always-in-reach surface to talk to the squad. */
+    .composer { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 40;
+        width: min(660px, 92vw); display: flex; flex-direction: column; gap: 12px; }
+    .composer-log { display: flex; flex-direction: column; gap: 8px; max-height: 42vh; overflow-y: auto; padding: 2px; }
+    .composer .qa { background: var(--card); border: 1px solid var(--stroke); border-radius: 14px;
+        padding: 11px 15px; box-shadow: var(--shadow-8); animation: rise .22s var(--ease) both; }
+    .composer .q { font-size: 12.5px; font-weight: 650; color: var(--muted); margin-bottom: 4px; }
+    .composer .q::before { content: "You"; margin-right: 7px; color: var(--faint); font-weight: 700; font-size: 10px; text-transform: uppercase; }
+    .composer .a { font-size: 14.5px; line-height: 1.5; color: var(--ink); white-space: pre-wrap; }
+    .composer .a.thinking { color: var(--muted); font-style: italic; display: flex; align-items: center; gap: 8px; }
+    .composer .a-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .composer .a-links .record-link { margin-left: 0; }
+    .composer-done { display: flex; flex-direction: column; gap: 6px; background: #f2fbf4; border: 1px solid #bfe6c8;
+        border-radius: 14px; padding: 11px 15px; box-shadow: var(--shadow-8); animation: rise .22s var(--ease) both; }
+    .composer-done .cd-row { display: flex; gap: 9px; align-items: baseline; font-size: 14px; color: var(--ink-2); }
+    .composer-done .cd-row::before { content: "✓"; color: var(--ready); font-weight: 800; }
+    .composer-bar { display: flex; gap: 10px; align-items: center; background: var(--card); border: 1px solid var(--stroke);
+        border-radius: 999px; padding: 8px 8px 8px 20px; box-shadow: var(--shadow-16); }
+    .composer-bar .ask-input { flex: 1; border: 0; padding: 8px 0; font-size: 15px; background: transparent; color: var(--ink); }
+    .composer-bar .ask-input:focus { outline: none; }
+    .composer-bar .mic { width: 44px; height: 44px; border-radius: 999px; border-color: var(--brand);
+        background: var(--brand); color: #fff; }
+    .composer-bar .mic:hover:not(:disabled) { background: var(--brand-deep); border-color: var(--brand-deep); }
+    .composer-bar .mic.on { background: var(--slip); border-color: var(--slip); }
+    .composer-bar .mic.stop { background: var(--slip); border-color: var(--slip); animation: pulse 1s ease-in-out infinite; }
+    .composer-bar .mic.stop:hover { background: var(--slip); }
     .step { position: relative; display: flex; gap: 12px; align-items: flex-start; background: var(--card);
         border: 1px solid var(--stroke); border-radius: 8px; padding: 12px 15px; font-size: 14px; line-height: 1.45;
         color: var(--ink-2); box-shadow: var(--shadow-2); animation: rise .3s var(--ease) both; }
@@ -81,10 +104,12 @@
     .col.Reconnect > header { background: var(--recon); } .col.ReadyToClose > header { background: var(--ready); }
     .col .count { background: rgba(255,255,255,.24); border-radius: 999px; padding: 1px 9px; font-size: 12.5px; font-weight: 600; }
     .col .empty { color: var(--faint); font-size: 12.5px; text-align: center; padding: 10px 0; }
-    .acct { display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
+    .acct { width: 100%; text-align: left; font-family: inherit; background: var(--card); display: flex;
+        justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
         border: 1px solid var(--stroke-2); border-radius: 6px; padding: 10px 12px; font-size: 14px; font-weight: 600;
         color: var(--ink); transition: background .12s var(--ease), border-color .12s var(--ease); }
     .acct:hover { background: var(--hover); border-color: var(--stroke); }
+    .acct:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .acct .bant { font-size: 11px; font-weight: 700; color: #fff; border-radius: 999px; padding: 2px 8px;
         letter-spacing: .01em; background: var(--faint); }
     .acct .bant.b4 { background: var(--ready); } .acct .bant.b3 { background: var(--teal); }
@@ -92,8 +117,15 @@
 
     .panel { background: var(--card); border: 1px solid var(--stroke); border-radius: 12px; padding: 26px 28px;
         margin-top: 24px; box-shadow: var(--shadow-16); animation: rise .28s var(--ease) both; }
+    .panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .panel-close { background: transparent; border: 0; color: var(--muted); font-size: 26px; line-height: 1;
+        cursor: pointer; padding: 0 4px; border-radius: 6px; }
+    .panel-close:hover { color: var(--ink); background: var(--hover); }
+    .panel-close:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
     .panel h2 { margin: 0 0 6px; font-size: 21px; letter-spacing: -.01em; font-weight: 600; }
     .panel .sub { color: var(--muted); margin: 0 0 18px; font-size: 14.5px; }
+    .lens { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 700; color: var(--recon);
+        background: #f2f3fb; border-radius: 6px; padding: 5px 10px; display: inline-block; margin-bottom: 6px; }
     .axis { padding: 14px 0; border-top: 1px solid var(--stroke-2); font-size: 14.5px; line-height: 1.5; }
     .axis .name { font-weight: 600; margin-right: 8px; }
     .axis .quote { color: var(--muted); font-style: italic; margin-top: 4px; }
@@ -118,8 +150,19 @@
     .done h2 { color: var(--ready); }
     .written { font-size: 15px; padding: 11px 0; border-top: 1px solid var(--stroke-2); display: flex; gap: 9px; align-items: baseline; color: var(--ink-2); }
     .written::before { content: "✓"; color: var(--ready); font-weight: 800; }
+    .record-link { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--brand); text-decoration: none;
+        white-space: nowrap; padding: 3px 11px; border: 1px solid var(--stroke); border-radius: 6px; transition: background .12s var(--ease), border-color .12s var(--ease); }
+    .record-link:hover { background: var(--brand-tint); border-color: var(--brand); }
 
     .head-actions { display: flex; align-items: center; gap: 12px; }
+    .persona { display: inline-flex; border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden; background: #fff; }
+    .persona .seg { font-family: inherit; font-size: 13px; font-weight: 650; padding: 8px 14px; border: 0; background: #fff;
+        color: var(--muted); cursor: pointer; transition: background .12s var(--ease), color .12s var(--ease); }
+    .persona .seg + .seg { border-left: 1px solid var(--stroke); }
+    .persona .seg.on { background: var(--brand); color: #fff; }
+    .persona .seg:disabled { opacity: .5; cursor: default; }
+    .persona .seg:not(.on):not(:disabled):hover { background: var(--hover); color: var(--ink); }
+    .persona-hint { font-size: 12px; font-style: italic; color: var(--risk); font-weight: 600; }
     .log-toggle { font-size: 13px; font-weight: 600; padding: 9px 15px; border: 1px solid var(--stroke); border-radius: 8px;
         background: #fff; color: var(--muted); cursor: pointer; transition: background .12s var(--ease), color .12s var(--ease); }
     .log-toggle:hover { background: var(--hover); color: var(--ink); }
@@ -140,6 +183,7 @@
         letter-spacing: .03em; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
     .log-row .ag-Watcher { background: #14314f; color: #79b0ec; } .log-row .ag-Thinker { background: #33245c; color: #bda2f0; }
     .log-row .ag-Ranker { background: #333; color: #adadad; } .log-row .ag-Operator { background: #143a24; color: #74d59a; }
+    .log-row .ag-MEDDPICC { background: #14383a; color: #66c6cb; }
     .log-row .m { color: #d6dde8; white-space: pre-wrap; word-break: break-word; }
     .log-row.thought .m { color: #9fd0ff; font-style: italic; }
     .log-row.err .m { color: #ff9d9d; }
@@ -147,6 +191,21 @@
 
     @@keyframes spin { to { transform: rotate(360deg); } }
     @@keyframes rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
+
+    /* Responsive: the two-column layout folds to one, the four cards step down to two then one,
+       and the header wraps rather than overflowing. The composer already sizes to min(660px, 92vw). */
+    @@media (max-width: 1000px) {
+        .layout { grid-template-columns: 1fr; }
+        .cards { grid-template-columns: repeat(2, 1fr); }
+    }
+    @@media (max-width: 620px) {
+        .app { padding: 26px 16px 180px; }
+        .head { flex-wrap: wrap; gap: 14px; }
+        .head h1 { font-size: 24px; }
+        .cards { grid-template-columns: 1fr; }
+        .panel { padding: 20px 18px; }
+        .composer { bottom: 14px; width: 94vw; }
+    }
 </style>
 
 <div class="app">
@@ -156,13 +215,37 @@
             <h1>What should I focus on this week?</h1>
         </div>
         <div class="head-actions">
+            <div class="persona" role="group" aria-label="Persona - the qualification lens for the next run">
+                <button type="button" class="seg @(_persona == Persona.Sdr ? "on" : "")"
+                        @onclick="() => _persona = Persona.Sdr" disabled="@_running"
+                        title="Fast BANT triage">SDR</button>
+                <button type="button" class="seg @(_persona == Persona.Ae ? "on" : "")"
+                        @onclick="() => _persona = Persona.Ae" disabled="@_running"
+                        title="Deep MEDDPICC qualification">AE</button>
+            </div>
+            @if (_report is not null && _persona != _ranPersona)
+            {
+                <span class="persona-hint">Re-run to apply</span>
+            }
             @if (_running)
             {
                 <span class="working"><span class="spinner"></span> The squad is working...</span>
             }
-            else if (_report is null)
+            else
             {
-                <button class="run" @onclick="RunAsync">Run the squad</button>
+                <button class="run" @onclick="RunAsync">
+                    @if (_report is null)
+                    {
+                        <span>Run the squad</span>
+                    }
+                    else
+                    {
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor" aria-hidden="true">
+                            <path d="M12 5V2L8 6l4 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z" />
+                        </svg>
+                        <span>Refresh</span>
+                    }
+                </button>
             }
             <button class="log-toggle" @onclick="() => _showLog = !_showLog">
                 Logs@(_log.Count > 0 ? $" ({_log.Count})" : "")
@@ -171,35 +254,7 @@
     </div>
 
     <div class="layout">
-        <div class="thread">
-            @if (_chat is not null)
-            {
-                <div class="ask">
-                    <div class="lead">Ask about this week</div>
-                    @foreach (var (question, answer) in _qa)
-                    {
-                        <div class="qa">
-                            <div class="q">@question</div>
-                            <div class="a">@answer</div>
-                        </div>
-                    }
-                    @if (_asking)
-                    {
-                        <div class="qa"><div class="a thinking"><span class="spinner sm"></span> Thinking...</div></div>
-                    }
-                    <form class="ask-row" @onsubmit="Ask" @onsubmit:preventDefault="true">
-                        <input class="ask-input" @bind="_question" @bind:event="oninput"
-                               placeholder="@(_listening ? "Listening..." : "Why is Litware ready?")"
-                               disabled="@(_asking || _listening)" />
-                        <button type="button" class="mic @(_listening ? "on" : "")" @onclick="AskByVoice"
-                                disabled="@(_asking || _listening)" title="Push to talk" aria-label="Push to talk">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-                                <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
-                            </svg>
-                        </button>
-                    </form>
-                </div>
-            }
+        <div class="thread" aria-live="polite">
             @if (_thread.Count > 0)
             {
                 <div class="lead">Squad activity</div>
@@ -227,10 +282,17 @@
                         }
                         @foreach (var recommendation in accounts)
                         {
-                            <div class="acct" @onclick="() => ShowEvidence(recommendation.Assessment)">
+                            <button type="button" class="acct" @onclick="() => ShowEvidence(recommendation)">
                                 <span>@recommendation.Assessment.AccountName</span>
-                                <span class="bant @BantClass(recommendation.Assessment.Bant.Score)">BANT @recommendation.Assessment.Bant.Score</span>
-                            </div>
+                                @if (recommendation.Meddpicc is { } scorecard)
+                                {
+                                    <span class="bant @MeddpiccClass(scorecard.Score)">MEDDPICC @scorecard.Score/8</span>
+                                }
+                                else
+                                {
+                                    <span class="bant @BantClass(recommendation.Assessment.Bant.Score)">BANT @recommendation.Assessment.Bant.Score</span>
+                                }
+                            </button>
                         }
                     </div>
                 </div>
@@ -241,18 +303,40 @@
     @if (_evidence is not null)
     {
         <div class="panel">
-            <h2>@_evidence.AccountName</h2>
-            <p class="sub">@_evidence.Rationale</p>
-            @foreach (var (axis, criterion) in Axes(_evidence.Bant))
+            <div class="panel-head">
+                <h2>@_evidence.Assessment.AccountName</h2>
+                <button type="button" class="panel-close" @onclick="() => _evidence = null" aria-label="Close evidence">&times;</button>
+            </div>
+            <p class="sub">@_evidence.Assessment.Rationale</p>
+            @if (_evidence.Meddpicc is { } scorecard)
             {
-                <div class="axis">
-                    <span class="name">@axis</span> <span class="status @criterion.Status">@criterion.Status</span>
-                    <div>@criterion.Reasoning</div>
-                    @foreach (var evidence in criterion.Evidence)
-                    {
-                        <div class="quote">"@evidence.Excerpt" - @evidence.EntityLogicalName, @evidence.Date</div>
-                    }
-                </div>
+                @* AE persona: the MEDDPICC read. The BANT triage still drove the archetype/actions. *@
+                <div class="lens">MEDDPICC read - @scorecard.Score of 8 confirmed</div>
+                @foreach (var (element, criterion) in MeddpiccElements(scorecard))
+                {
+                    <div class="axis">
+                        <span class="name">@element</span> <span class="status @criterion.Status">@criterion.Status</span>
+                        <div>@criterion.Reasoning</div>
+                        @foreach (var evidence in criterion.Evidence)
+                        {
+                            <div class="quote">"@evidence.Excerpt" - @evidence.EntityLogicalName, @evidence.Date</div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                @foreach (var (axis, criterion) in Axes(_evidence.Assessment.Bant))
+                {
+                    <div class="axis">
+                        <span class="name">@axis</span> <span class="status @criterion.Status">@criterion.Status</span>
+                        <div>@criterion.Reasoning</div>
+                        @foreach (var evidence in criterion.Evidence)
+                        {
+                            <div class="quote">"@evidence.Excerpt" - @evidence.EntityLogicalName, @evidence.Date</div>
+                        }
+                    </div>
+                }
             }
         </div>
     }
@@ -284,13 +368,104 @@
             <h2>Done</h2>
             @foreach (var line in _report.Lines)
             {
-                <div class="written">@line</div>
+                var link = RecordLink(line);
+                <div class="written">
+                    <span>@line.Message</span>
+                    @if (link is not null)
+                    {
+                        <a class="record-link" href="@link" target="_blank" rel="noopener">Open record</a>
+                    }
+                </div>
             }
         </div>
     }
 </div>
 
-<div class="log-drawer @(_showLog ? "open" : "")">
+@* The companion's voice-first composer: pinned, centred, always in reach once the run is in.
+   The mic is the primary action; the input is the fallback. This is the "talk to it" surface. *@
+@if (_chat is not null)
+{
+    <div class="composer">
+        @if (_qa.Count > 0 || _asking)
+        {
+            <div class="composer-log">
+                @foreach (var entry in _qa)
+                {
+                    <div class="qa">
+                        <div class="q">@entry.Question</div>
+                        <div class="a">@entry.Answer</div>
+                        @if (entry.Writes.Count > 0)
+                        {
+                            <div class="a-links">
+                                @foreach (var write in entry.Writes)
+                                {
+                                    var link = RecordLink(write);
+                                    @if (link is not null)
+                                    {
+                                        <a class="record-link" href="@link" target="_blank" rel="noopener">Open record</a>
+                                    }
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                @if (_asking)
+                {
+                    <div class="qa"><div class="a thinking"><span class="spinner sm"></span> Thinking...</div></div>
+                }
+            </div>
+        }
+        @* Write confirmation right where the seller is looking, with a link straight to each record. *@
+        @if (_report is not null)
+        {
+            <div class="composer-done">
+                @foreach (var line in _report.Lines)
+                {
+                    var link = RecordLink(line);
+                    <div class="cd-row">
+                        <span>@line.Message</span>
+                        @if (link is not null)
+                        {
+                            <a class="record-link" href="@link" target="_blank" rel="noopener">Open record</a>
+                        }
+                    </div>
+                }
+            </div>
+        }
+        <form class="composer-bar" @onsubmit="Ask" @onsubmit:preventDefault="true">
+            <input class="ask-input" @bind="_question" @bind:event="oninput" aria-label="Ask about this week"
+                   placeholder="@(_listening ? "Listening..." : "Ask about this week, or tap the mic")"
+                   disabled="@(_asking || _listening)" />
+            @if (_speaking)
+            {
+                <button type="button" class="mic stop" @onclick="StopSpeaking" title="Stop" aria-label="Stop speaking">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                </button>
+            }
+            else if (_listening)
+            {
+                <button type="button" class="mic on" @onclick="StopListening" title="Stop listening" aria-label="Stop listening">
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+                        <rect x="6" y="6" width="12" height="12" rx="2" />
+                    </svg>
+                </button>
+            }
+            else
+            {
+                <button type="button" class="mic" @onclick="AskByVoice"
+                        disabled="@_asking" title="Push to talk" aria-label="Push to talk">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+                        <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v5a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z" />
+                    </svg>
+                </button>
+            }
+        </form>
+    </div>
+}
+
+<div class="log-drawer @(_showLog ? "open" : "")" inert="@(!_showLog)" aria-hidden="@(_showLog ? "false" : "true")">
     <header>
         Activity log
         <button class="close" @onclick="() => _showLog = false" aria-label="Close">&times;</button>
@@ -319,14 +494,14 @@
     static readonly Archetype[] Cards = [Archetype.Slipping, Archetype.AtRisk, Archetype.Reconnect, Archetype.ReadyToClose];
     static readonly Dictionary<string, string> Stages = new()
     {
-        ["watcher"] = "Watcher retrieved every account from Dataverse",
+        ["watcher"] = "Watcher read the seller's accounts from Dataverse",
         ["thinker"] = "Thinker judged each opportunity against BANT",
         ["ranker"] = "Ranker ordered them by qualification",
         ["operator"] = "Operator reviewed the actions",
         ["challenge"] = "Operator challenged the Thinker, who re-examined",
         ["actions"] = "Operator prepared the actions",
         ["approval"] = "Waiting for your approval",
-        ["execute"] = "Wrote the approved actions",
+        ["execute"] = "Applied your decision",
     };
 
     // The workflow only reports when a stage finishes, so between stages we show what is
@@ -350,8 +525,12 @@
 
     // BANT runs 0-4; colour the badge from cold (red) to closeable (green).
     static string BantClass(int score) => score >= 4 ? "b4" : score == 3 ? "b3" : score == 2 ? "b2" : "b1";
+    // MEDDPICC runs 0-8; colour the badge on the same cold-to-closeable scale as BANT.
+    static string MeddpiccClass(int score) => score >= 6 ? "b4" : score >= 4 ? "b3" : score >= 2 ? "b2" : "b1";
 
     bool _running;
+    Persona _persona = Persona.Sdr;   // the qualification lens; SDR = BANT triage, AE = + MEDDPICC read
+    Persona? _ranPersona;             // the persona the current results were built under (null before any run)
     string? _active;
     readonly List<string> _thread = new();
     IReadOnlyList<RankedRecommendation> _recommendations = [];
@@ -359,14 +538,29 @@
 
     // The grounded question-answer layer over this run's results. Read-only.
     PipelineConversation? _chat;
-    readonly List<(string Question, string Answer)> _qa = new();
+    readonly List<QaEntry> _qa = new();
+    // When an answer carried an approval, this holds its index so the writes it caused can be
+    // attached back to that answer once the workflow reports them.
+    int? _approvedAt;
     string _question = "";
+
+    // One exchange in the conversation. Writes is filled in later for the answer that approved,
+    // so the record links show inside the response text itself, not only in the Done panel.
+    sealed class QaEntry(string question, string answer)
+    {
+        public string Question { get; } = question;
+        public string Answer { get; } = answer;
+        public List<WriteResult> Writes { get; } = new();
+    }
+
     bool _asking;
     bool _listening;
+    bool _speaking;
+    bool _disposed;
     readonly HashSet<int> _selected = new();
     TaskCompletionSource<ApprovalDecision>? _pending;
     WriteReport? _report;
-    OpportunityAssessment? _evidence;
+    RankedRecommendation? _evidence;
 
     // The activity log: the raw event stream behind the dialogue, with timings and full
     // error detail. Off by default so the demo stays the three screens; the toggle opens it.
@@ -397,6 +591,15 @@
             return;
         }
         _running = true;
+        // Stop any voice still playing or listening from a previous run before resetting state.
+        try
+        {
+            await JS.InvokeVoidAsync("voiceInterop.stopSpeaking");
+            await JS.InvokeVoidAsync("voiceInterop.stopListening");
+        }
+        catch { /* the JS module may not be loaded yet on the very first run */ }
+        _speaking = false;
+        _listening = false;
         _thread.Clear();
         _log.Clear();
         _report = null;
@@ -405,23 +608,30 @@
         _proposals = [];
         _chat = null;
         _qa.Clear();
+        _approvedAt = null;
+        _ranPersona = _persona;   // these results are built under the persona selected now
         _clock.Restart();
         _thread.Add("Starting the squad...");
-        _active = "Watcher is retrieving every account from Dataverse...";
+        _active = "Watcher is reading the seller's accounts from Dataverse...";
         Log("Run started");
         await InvokeAsync(StateHasChanged);
 
-        BuiltWorkflow? built = null;
+        BuiltSquad? built = null;
         try
         {
             // Build (and the Dataverse client construction it does) off the render thread
             // so the UI stays responsive and the thread updates as the run streams.
-            built = await Task.Run(Factory.Build);
+            built = await Task.Run(() => Factory.Build(_persona));
             Log("Workflow built, streaming events");
             var run = await InProcessExecution.RunStreamingAsync(built.Workflow, "What should I focus on this week?");
 
             await foreach (var workflowEvent in run.WatchStreamAsync())
             {
+                // The circuit dropped (component disposed) - stop touching the dead UI.
+                if (_disposed)
+                {
+                    break;
+                }
                 switch (workflowEvent)
                 {
                     // Deterministic work and model output stream in as they happen - which agent
@@ -438,7 +648,13 @@
                         break;
 
                     case ExecutorCompletedEvent completed:
-                        _thread.Add(Stages.GetValueOrDefault(completed.ExecutorId, completed.ExecutorId));
+                        // The approval port completes twice (emitting the request, then again on
+                        // the response), so skip a label identical to the last to avoid a dupe.
+                        var stage = Stages.GetValueOrDefault(completed.ExecutorId, completed.ExecutorId);
+                        if (_thread.Count == 0 || _thread[^1] != stage)
+                        {
+                            _thread.Add(stage);
+                        }
                         _active = Working.GetValueOrDefault(completed.ExecutorId);
                         await InvokeAsync(StateHasChanged);
                         break;
@@ -447,24 +663,33 @@
                         _active = null;
                         _recommendations = approvalRequest.Recommendations;
                         _proposals = approvalRequest.Proposals;
-                        // The results are in - the seller can now ask about them.
-                        _chat = Factory.BuildConversation(SerializeAnalysis());
+                        _selected.Clear();   // a fresh round: nothing pre-selected
+                        // The results are in - the seller can now ask about them. Built once; later
+                        // rounds keep the same conversation (the analysis has not changed).
+                        _chat ??= Factory.BuildConversation(SerializeAnalysis());
                         _pending = new TaskCompletionSource<ApprovalDecision>(TaskCreationOptions.RunContinuationsAsynchronously);
                         Log($"approval requested: {approvalRequest.Proposals.Count} proposals");
                         await InvokeAsync(StateHasChanged);
                         var decision = await _pending.Task;
                         _pending = null;
                         _active = decision.Approved.Count > 0 ? "Writing the approved actions to Dataverse..." : null;
-                        Log($"decision sent: {decision.Approved.Count} approved, {_proposals.Count - decision.Approved.Count} rejected");
+                        Log($"decision sent: {decision.Approved.Count} approved, {decision.Next?.Proposals.Count ?? 0} kept for another round");
                         await run.SendResponseAsync(requestInfo.Request.CreateResponse(decision));
                         await InvokeAsync(StateHasChanged);
                         break;
 
                     case WorkflowOutputEvent { Data: WriteReport report }:
                         _report = report;
+                        // Attach the written records to the answer that approved them, so the
+                        // links appear inside that response bubble too - not only in the panel.
+                        if (_approvedAt is int at && at < _qa.Count)
+                        {
+                            _qa[at].Writes.AddRange(report.Lines.Where(line => line.RecordId is not null));
+                            _approvedAt = null;
+                        }
                         foreach (var line in report.Lines)
                         {
-                            Log(line);
+                            Log(line.Message);
                         }
                         await InvokeAsync(StateHasChanged);
                         break;
@@ -516,15 +741,21 @@
         {
             var result = await _chat.AskAsync(question);
             answer = result.Answer;
-            _qa.Add((question, result.Answer));
+            _qa.Add(new QaEntry(question, result.Answer));
             // Apply the conversation's intent here, on the dispatcher - the tools only recorded
             // it. Selection and approval go through the same state the checkboxes and buttons use.
             ApplyCommands(result);
+            // Remember which answer approved, so its record links can attach when writes report.
+            if (result.Action is TurnAction.Approve or TurnAction.ApproveAll)
+            {
+                _approvedAt = _qa.Count - 1;
+            }
         }
         catch (Exception ex)
         {
-            answer = $"(error: {ex.Message})";
-            _qa.Add((question, answer));
+            // Show the failure, but return empty so the voice path does not read the error aloud.
+            _qa.Add(new QaEntry(question, $"(error: {ex.Message})"));
+            answer = "";
         }
         finally
         {
@@ -552,19 +783,50 @@
             if (!string.IsNullOrWhiteSpace(text))
             {
                 var answer = await RunAsk(text);
-                await JS.InvokeVoidAsync("voiceInterop.speak", answer);
+                _speaking = true;
+                await InvokeAsync(StateHasChanged);
+                try
+                {
+                    await JS.InvokeVoidAsync("voiceInterop.speak", answer);
+                }
+                finally
+                {
+                    _speaking = false;
+                }
             }
         }
         catch (Exception ex)
         {
-            _qa.Add(("(voice)", $"(voice error: {ex.Message})"));
+            _qa.Add(new QaEntry("(voice)", $"(voice error: {ex.Message})"));
         }
         finally
         {
             _listening = false;
+            _speaking = false;
             await InvokeAsync(StateHasChanged);
         }
     }
+
+    // Cut the spoken answer short. speak() resolves as soon as playback stops, so AskByVoice
+    // falls through its finally and the button flips back to the mic.
+    async Task StopSpeaking() => await JS.InvokeVoidAsync("voiceInterop.stopSpeaking");
+
+    // Cancel an in-progress listen so the composer never locks until Azure's silence timeout.
+    // recognizeOnce returns empty, AskByVoice asks nothing and clears _listening in its finally.
+    async Task StopListening() => await JS.InvokeVoidAsync("voiceInterop.stopListening");
+
+    // A dropped SignalR circuit disposes the component. Release the approval gate so the run is
+    // not stranded waiting forever, and mark disposed so a still-streaming run stops re-rendering.
+    public void Dispose()
+    {
+        _disposed = true;
+        _pending?.TrySetResult(new ApprovalDecision([]));
+    }
+
+    // The deep link for a written record, or null for lines that wrote nothing (skips, stubs,
+    // "nothing written"). Shared by the Done panel and the composer's write confirmation.
+    string? RecordLink(WriteResult line) =>
+        line.RecordId is { } id && line.EntityLogicalName is { } entity ? Factory.RecordUrl(entity, id) : null;
 
     // The conversation asked to select and/or approve. It can only touch this run's proposals
     // and the existing gate - the same authority as the checkboxes and the approve/reject buttons.
@@ -580,10 +842,10 @@
         switch (turn.Action)
         {
             case TurnAction.Approve:
-                _pending?.SetResult(new ApprovalDecision(_proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList()));
+                _pending?.SetResult(Decide(_proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList()));
                 break;
             case TurnAction.ApproveAll:
-                _pending?.SetResult(new ApprovalDecision(_proposals));
+                _pending?.SetResult(Decide(_proposals));
                 break;
             case TurnAction.RejectAll:
                 _pending?.SetResult(new ApprovalDecision([]));
@@ -618,6 +880,8 @@
                             Need = Axis(assessment.Bant.Need),
                             Timing = Axis(assessment.Bant.Timing),
                         },
+                        // AE persona only: the MEDDPICC read, so the spokesperson can answer on it.
+                        Meddpicc = recommendation.Meddpicc is { } scorecard ? MeddpiccProjection(scorecard) : null,
                     };
                 }),
                 actions = _proposals.Select(proposal => new { proposal.Number, proposal.OpportunityName, proposal.Action.Type, proposal.Action.Title }),
@@ -631,15 +895,51 @@
         Evidence = criterion.Evidence.Select(evidence => new { evidence.EntityLogicalName, evidence.Date, evidence.Excerpt }),
     };
 
+    static object MeddpiccProjection(MeddpiccScorecard s) => new
+    {
+        Metrics = Element(s.Metrics),
+        EconomicBuyer = Element(s.EconomicBuyer),
+        DecisionCriteria = Element(s.DecisionCriteria),
+        DecisionProcess = Element(s.DecisionProcess),
+        PaperProcess = Element(s.PaperProcess),
+        IdentifyPain = Element(s.IdentifyPain),
+        Champion = Element(s.Champion),
+        Competition = Element(s.Competition),
+    };
+
+    static object Element(MeddpiccElement element) => new
+    {
+        element.Status,
+        element.Reasoning,
+        Evidence = element.Evidence.Select(evidence => new { evidence.EntityLogicalName, evidence.Date, evidence.Excerpt }),
+    };
+
     void Toggle(int number, ChangeEventArgs e)
     {
         if (e.Value is true) { _selected.Add(number); } else { _selected.Remove(number); }
     }
 
-    void ApproveSelected() => _pending?.SetResult(new ApprovalDecision(_proposals.Where(p => _selected.Contains(p.Number)).ToList()));
-    void ApproveAll() => _pending?.SetResult(new ApprovalDecision(_proposals));
+    void ApproveSelected() => _pending?.SetResult(Decide(_proposals.Where(p => _selected.Contains(p.Number)).ToList()));
+    void ApproveAll() => _pending?.SetResult(Decide(_proposals));
     void RejectAll() => _pending?.SetResult(new ApprovalDecision([]));
-    void ShowEvidence(OpportunityAssessment assessment) => _evidence = assessment;
+
+    // Build the decision for a partial approval: write the approved, and if any proposals remain,
+    // re-open the gate with them (Next) so nothing is lost. Approving everything ends the run.
+    ApprovalDecision Decide(IReadOnlyList<ActionProposal> approved)
+    {
+        var approvedNumbers = approved.Select(proposal => proposal.Number).ToHashSet();
+        var remaining = _proposals.Where(proposal => !approvedNumbers.Contains(proposal.Number)).ToList();
+        var next = approved.Count > 0 && remaining.Count > 0 ? new ApprovalRequest(_recommendations, remaining) : null;
+        return new ApprovalDecision(approved, next);
+    }
+    void ShowEvidence(RankedRecommendation recommendation) => _evidence = recommendation;
+
+    static IEnumerable<(string Element, MeddpiccElement Criterion)> MeddpiccElements(MeddpiccScorecard s) =>
+    [
+        ("Metrics", s.Metrics), ("Economic buyer", s.EconomicBuyer), ("Decision criteria", s.DecisionCriteria),
+        ("Decision process", s.DecisionProcess), ("Paper process", s.PaperProcess), ("Identify pain", s.IdentifyPain),
+        ("Champion", s.Champion), ("Competition", s.Competition),
+    ];
 
     static IEnumerable<(string Axis, BantCriterion Criterion)> Axes(BantAssessment bant) =>
     [

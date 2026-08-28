@@ -8,7 +8,7 @@ namespace Zava.SalesIntelligence.Dataverse;
 // and appointment, and write on opportunity limited to stage and estimated close date.
 // No delete anywhere. These run only after approval - the gate is a workflow primitive,
 // not a check in here.
-public sealed class WriterTools(ServiceClient client)
+public sealed class WriterTools(ServiceClient client, Guid? sellerUserId = null)
 {
     static readonly Dictionary<string, int> Stages = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -33,7 +33,7 @@ public sealed class WriterTools(ServiceClient client)
         return client.CreateAsync(task, cancellationToken);
     }
 
-    public Task<Guid> CreateAppointmentAsync(EntityReference regarding, string subject, string body, DateOnly start, CancellationToken cancellationToken)
+    public Task<Guid> CreateAppointmentAsync(EntityReference regarding, string subject, string body, DateOnly start, Guid? clientContactId, CancellationToken cancellationToken)
     {
         var startTime = Utc(start, new TimeOnly(9, 0));
         var appointment = new Entity("appointment")
@@ -44,8 +44,37 @@ public sealed class WriterTools(ServiceClient client)
             ["scheduledstart"] = startTime,
             ["scheduledend"] = startTime.AddHours(1),
         };
+
+        // Make it a real meeting: the seller organises and is required, and the client contact is
+        // invited. ownerid stays the writer app user so cleanup-demo-writes can find it. The demo
+        // contacts carry no email address, so no invitation is actually sent to the client.
+        if (sellerUserId is { } organiser)
+        {
+            appointment["organizer"] = Parties(Party("systemuser", organiser));
+        }
+        var required = new List<Entity>();
+        if (sellerUserId is { } seller)
+        {
+            required.Add(Party("systemuser", seller));
+        }
+        if (clientContactId is { } contact)
+        {
+            required.Add(Party("contact", contact));
+        }
+        if (required.Count > 0)
+        {
+            appointment["requiredattendees"] = Parties([.. required]);
+        }
+
         return client.CreateAsync(appointment, cancellationToken);
     }
+
+    // An activityparty pointing at a systemuser or contact, and a party list to hang on an activity.
+    static Entity Party(string entityLogicalName, Guid id) =>
+        new("activityparty") { ["partyid"] = new EntityReference(entityLogicalName, id) };
+
+    static EntityCollection Parties(params Entity[] parties) =>
+        new(parties) { EntityName = "activityparty" };
 
     public Task UpdateOpportunityStageAsync(Guid opportunityId, string stage, CancellationToken cancellationToken)
     {

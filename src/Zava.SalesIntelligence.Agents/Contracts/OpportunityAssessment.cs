@@ -60,6 +60,10 @@ public sealed class ArchetypeJsonConverter : JsonConverter<Archetype>
             return (Archetype)number;
         }
 
+        // Unparseable archetype. This only happens on a refusal (the model wrote something like
+        // "InsufficientSignal" into the archetype field), and Confidence.InsufficientSignal makes
+        // the Ranker drop that assessment before the archetype is ever read - so the value here is
+        // inert. Reconnect is an arbitrary placeholder, not a real classification.
         return Archetype.Reconnect;
     }
 

@@ -1,8 +1,9 @@
 namespace Zava.SalesIntelligence.Agents;
 
-// The Operator's identity. Instructions are verbatim from the build brief. It turns
-// an assessment into prepared actions; the next-best-action skill guides the shape.
-// Writes happen only after approval, and only in phase 4 - here it prepares.
+// The Operator's identity. It turns an assessment into prepared actions; the next-best-action
+// skill guides the shape. Writes happen only after approval, in the execute stage - here it only
+// prepares. The challenge of a Missing axis is orchestrated by the workflow (the Operator executor
+// routes to the Thinker), not called by this agent - so its instructions do not name a tool.
 public static class Operator
 {
     public const string Instructions = """
@@ -14,9 +15,8 @@ public static class Operator
 
         If the assessment is InsufficientSignal, propose nothing.
 
-        Before preparing an action that rests on a Missing axis, call
-        challenge_assessment and ask the Thinker which evidence ruled it out.
-        Call it at most once.
+        Do not build an action on a BANT axis the Thinker marked Missing unless the
+        evidence has been questioned - see the next-best-action skill.
         """;
 
     public static string BuildSystemPrompt() =>

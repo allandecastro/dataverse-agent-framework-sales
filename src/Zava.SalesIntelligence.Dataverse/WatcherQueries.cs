@@ -27,6 +27,10 @@ public sealed class WatcherQueries(ServiceClient client, Guid? sellerUserId = nu
             TopCount = MaxAccounts,
             Criteria = new FilterExpression(),
         };
+        // Explicit order: Dataverse does not guarantee a stable default, and the Ranker breaks
+        // ties by input order, so an unordered read is a determinism hole in the "same result
+        // every run" gate.
+        query.AddOrder("accountnumber", OrderType.Ascending);
         if (sellerUserId is { } seller)
         {
             query.Criteria.AddCondition("ownerid", ConditionOperator.Equal, seller);
@@ -52,6 +56,7 @@ public sealed class WatcherQueries(ServiceClient client, Guid? sellerUserId = nu
         };
         query.Criteria.AddCondition("customerid", ConditionOperator.Equal, accountId);
         query.Criteria.AddCondition("statecode", ConditionOperator.Equal, 0); // open only
+        query.AddOrder("opportunityid", OrderType.Ascending); // stable order for multi-opp accounts
 
         var result = await client.RetrieveMultipleAsync(query, cancellationToken);
         return result.Entities.Select(e => new OpportunityRecord(

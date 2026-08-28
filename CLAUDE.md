@@ -43,7 +43,7 @@ If you find yourself writing custom code that reimplements something MAF already
 
 **The Ranker is plain code, not an agent.** Ordering is deterministic so the demo produces the same result every run. Do not move ranking logic into a prompt.
 
-**Identity is injected by middleware, outside agent code.** Agents do not know which credential they run under.
+**Identity lives at the Dataverse client layer (the reader and writer app users), enforced by Dataverse roles - not in agent code; the LLM agents hold no credential.** A run middleware (`AgentIdentity.WithAuthority`) makes each agent's authority legible on every call.
 
 **Dataverse queries are fixed in code.** The model chooses when to call a tool, never what to ask. Bounded parameters, no free-form query strings, no dynamic FetchXML built from model output.
 

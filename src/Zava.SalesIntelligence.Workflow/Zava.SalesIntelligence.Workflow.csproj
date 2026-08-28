@@ -7,6 +7,12 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Agents.AI.Workflows" />
+    <!-- The shared SquadFactory builds the agents and Dataverse clients, so it needs the
+         OpenAI client, the agent extensions, and the credential types (already used by the
+         Host and Companion; no new package enters the repo). -->
+    <PackageReference Include="Azure.AI.OpenAI" />
+    <PackageReference Include="Azure.Identity" />
+    <PackageReference Include="Microsoft.Agents.AI.OpenAI" />
   </ItemGroup>
 
 </Project>

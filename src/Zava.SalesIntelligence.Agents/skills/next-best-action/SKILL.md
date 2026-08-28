@@ -27,7 +27,8 @@ a conversation rather than a message.
 the stage is ahead of the qualification, not to advance a deal.
 
 **CloseDateUpdate** - move the close date when the current one is unsupported by any
-customer-owned date.
+customer-owned date. Set DueDate to the suggested new date, grounded in the strongest
+evidence date - a board review, a signature target; if none exists, a realistic near date.
 
 ## By archetype
 
@@ -57,5 +58,5 @@ action on an absence you have not questioned.
 
 ## Approval
 
-Every action is a proposal. Set RequiresApproval to true. Nothing is written
-without the seller's approval.
+Every action is a proposal. Nothing is written without the seller's approval -
+the approval gate holds every write, so you never mark or request approval yourself.

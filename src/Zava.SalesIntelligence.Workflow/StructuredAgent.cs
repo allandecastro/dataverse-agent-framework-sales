@@ -19,17 +19,30 @@ static class StructuredAgent
     public static async Task<T> RunAsync<T>(AIAgent agent, string input, CancellationToken cancellationToken)
     {
         var options = new AgentRunOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema<T>() };
-        var response = await agent.RunAsync(input, options: options, cancellationToken: cancellationToken);
 
-        // The schema constrains the model, but a truncated or empty response still happens.
-        // Fail with a clear message rather than an opaque JsonException or a laundered null
-        // that surfaces as an NRE two stages later.
-        if (string.IsNullOrWhiteSpace(response.Text))
+        // The schema constrains the model, but a truncated, empty, or malformed response still
+        // happens - and it is usually transient. Retry once before giving up, so a single flaky
+        // completion does not fault the whole run. The caller catches the final failure and
+        // degrades that one account rather than crashing the stage.
+        for (var attempt = 1; attempt <= 2; attempt++)
         {
-            throw new InvalidOperationException($"The {agent.Name} agent returned an empty response for a {typeof(T).Name} result.");
+            var response = await agent.RunAsync(input, options: options, cancellationToken: cancellationToken);
+            if (!string.IsNullOrWhiteSpace(response.Text))
+            {
+                try
+                {
+                    if (JsonSerializer.Deserialize<T>(response.Text, Options) is { } result)
+                    {
+                        return result;
+                    }
+                }
+                catch (JsonException)
+                {
+                    // Malformed JSON despite the schema - fall through to retry, then throw.
+                }
+            }
         }
 
-        return JsonSerializer.Deserialize<T>(response.Text, Options)
-            ?? throw new InvalidOperationException($"The {agent.Name} agent's response did not deserialize to a {typeof(T).Name}.");
+        throw new InvalidOperationException($"The {agent.Name} agent did not return a usable {typeof(T).Name} after 2 attempts.");
     }
 }

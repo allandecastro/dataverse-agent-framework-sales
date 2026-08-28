@@ -40,3 +40,15 @@ first. It prints client ids and secrets to store in user secrets (`ZAVA_TENANT_I
 `ZAVA_READER_CLIENT_ID`/`SECRET`, `ZAVA_WRITER_CLIENT_ID`/`SECRET`) - never commit them.
 See `docs/identity.md`. Restricting the writer to the opportunity stage and close-date
 fields needs a Field Security Profile, configured in the maker portal.
+
+## reset-demo.ps1
+
+Restores the demo to its canonical state so every run reads identical data. Once approved,
+the Operator writes real opportunity edits (stage, close date) that mutate the fields the
+Watcher reads on the next run, so run this before each demo or rehearsal: it re-seeds the
+opportunities from `data/dataset.json` and deletes the tasks and appointments the agents
+created. Runs under the signed-in az identity, never the agent app users.
+
+```pwsh
+./scripts/reset-demo.ps1 -EnvironmentUrl https://org.crm.dynamics.com
+```

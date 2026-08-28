@@ -63,9 +63,11 @@ converters, which is why the deserialization is done by hand - see `StructuredAg
 
 Turns an assessment into at most three prepared actions, each tied to a specific signal
 the Thinker cited, written from the evidence rather than a template. It uses the
-`next-best-action` skill and the fast deployment. Identity: the writer credential. Writes:
-yes, but only after approval. Before it prepares an action that rests on a Missing axis it
-can challenge the Thinker once - see the challenge edge below.
+`next-best-action` skill and the reasoning deployment (the cheaper model under-produced
+actions, so both squad agents run on the reasoning model - the cheaper one is used only by
+the samples). The Operator agent holds no Dataverse identity; the approved writes run later
+under the writer credential in the execute stage. Before it prepares an action that rests on
+a Missing axis it can challenge the Thinker once - see the challenge edge below.
 
 ### Ranker - orders (not an agent)
 

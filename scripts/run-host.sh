@@ -12,7 +12,8 @@ set -euo pipefail
 
 export ZAVA_DATAVERSE_URL="https://dv-mafdemo-dev.crm4.dynamics.com"
 export ZAVA_OPENAI_ENDPOINT="https://aif-zava-salesintel.openai.azure.com/"
-export ZAVA_OPENAI_DEPLOYMENT="gpt-5.4-mini"
+# Both squad agents (Thinker and Operator) run on the reasoning deployment; the cheaper model
+# is used only by the samples, which set ZAVA_OPENAI_DEPLOYMENT themselves.
 export ZAVA_OPENAI_REASONING_DEPLOYMENT="gpt-5.6-sol"
 export ZAVA_SELLER_USER_ID="6c20a779-e08b-f111-8076-002248a0acb3"
 export ZAVA_APPROVE="${ZAVA_APPROVE:-none}"

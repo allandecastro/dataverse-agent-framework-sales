@@ -76,6 +76,11 @@ $WriterPrivileges = @(
     @{ Name = 'prvAppendToOpportunity'; Depth = 'Global' }  # attach the activity to the opportunity
     @{ Name = 'prvWriteOpportunity';    Depth = 'Global' }  # update stage and close date; field scope below
     @{ Name = 'prvReadOpportunity';     Depth = 'Global' }  # needed to update
+    @{ Name = 'prvReadAsyncOperation';  Depth = 'Global' }  # appointment create triggers an async op read
+    @{ Name = 'prvAppendToActivity';    Depth = 'Global' }  # attach the seller/client parties to an appointment
+    @{ Name = 'prvAppendToContact';     Depth = 'Global' }  # invite the client contact as an attendee
+    @{ Name = 'prvReadContact';         Depth = 'Global' }  # resolve the client contact reference
+    @{ Name = 'prvShareActivity';       Depth = 'Global' }  # adding an attendee shares the appointment with them
 )
 
 # --- Setup --------------------------------------------------------------------

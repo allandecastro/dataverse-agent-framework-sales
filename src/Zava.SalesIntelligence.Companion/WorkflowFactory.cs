@@ -2,55 +2,28 @@ using Azure.AI.OpenAI;
 using Azure.Identity;
 using Microsoft.Agents.AI;
 using OpenAI.Chat;
-using Zava.SalesIntelligence.Agents;
-using Zava.SalesIntelligence.Dataverse;
 using Zava.SalesIntelligence.Workflow;
 
 namespace Zava.SalesIntelligence.Companion;
 
-// Builds the sales workflow from the ZAVA_* configuration. Retrieval runs under the
-// reader credential and writes under the writer credential, so the companion shows the
-// same identity boundary as the console host.
-// The built workflow together with the Dataverse clients it holds. The caller disposes
-// Resources when the run is done - the ServiceClients are IDisposable and outlive Build(),
-// so, unlike the console host's `using`, they need an explicit owner here.
-public sealed record BuiltWorkflow(Microsoft.Agents.AI.Workflows.Workflow Workflow, IReadOnlyList<IDisposable> Resources);
-
+// The companion's view of the squad. The squad workflow itself is built by the shared
+// SquadFactory (identical wiring to the console host); this factory adds the companion-only
+// pieces: the grounded Q&A agent and the record deep links.
 public sealed class WorkflowFactory
 {
-    public BuiltWorkflow Build()
+    // The squad workflow plus the Dataverse clients it holds; the caller disposes the clients
+    // when the run ends (they are IDisposable and outlive Build). Shared with the host. The persona
+    // (SDR / AE) chooses the qualification lens; the UI toggle passes it in.
+    public BuiltSquad Build(Persona persona = Persona.Sdr) => SquadFactory.Build(persona);
+
+    // A deep link to a written record's form in the model-driven app, so the seller can confirm
+    // what the Operator just wrote. Config, not a secret; null when the base URL is unset.
+    public string? RecordUrl(string entityLogicalName, Guid recordId)
     {
-        var dataverseUrl = Require("ZAVA_DATAVERSE_URL");
-        var openAiEndpoint = Require("ZAVA_OPENAI_ENDPOINT");
-        var reasoningDeployment = Require("ZAVA_OPENAI_REASONING_DEPLOYMENT");
-
-        var credential = new AzureCliCredential();
-        var readerCredential = AppUserCredential("ZAVA_READER_CLIENT_ID", "ZAVA_READER_CLIENT_SECRET", credential);
-        var writerCredential = AppUserCredential("ZAVA_WRITER_CLIENT_ID", "ZAVA_WRITER_CLIENT_SECRET", credential);
-
-        var readerClient = DataverseClientFactory.Create(dataverseUrl, readerCredential);
-        var writerClient = DataverseClientFactory.Create(dataverseUrl, writerCredential);
-        // Scope the account read to the seller by owner when running under the reader app
-        // identity (which owns no accounts); falls back to the signed-in user when unset.
-        Guid? sellerUserId = Guid.TryParse(Environment.GetEnvironmentVariable("ZAVA_SELLER_USER_ID"), out var seller) ? seller : null;
-        var queries = new WatcherQueries(readerClient, sellerUserId);
-        var watcher = new WatcherService(queries);
-        var writer = new WriterTools(writerClient);
-
-        var openAiClient = new AzureOpenAIClient(new Uri(openAiEndpoint), credential);
-        AIAgent thinker = openAiClient.GetChatClient(reasoningDeployment)
-            .AsAIAgent(name: "Thinker", instructions: Thinker.BuildSystemPrompt());
-        // The Operator runs on the reasoning deployment: the fast model under-produced
-        // actions (some actionable accounts got none, coverage swung run to run). Reasoning
-        // gives it the multi-step consistency the action generation needs.
-        AIAgent operatorAgent = openAiClient.GetChatClient(reasoningDeployment)
-            .AsAIAgent(name: "Operator", instructions: Operator.BuildSystemPrompt());
-
-        var pacing = TimeSpan.FromMilliseconds(
-            int.TryParse(Environment.GetEnvironmentVariable("ZAVA_STEP_DELAY_MS"), out var ms) ? ms : 0);
-
-        var workflow = SalesWorkflow.Build(queries, watcher, thinker, operatorAgent, writer, pacing);
-        return new BuiltWorkflow(workflow, [readerClient, writerClient]);
+        var dataverseUrl = Environment.GetEnvironmentVariable("ZAVA_DATAVERSE_URL");
+        return string.IsNullOrWhiteSpace(dataverseUrl)
+            ? null
+            : $"{dataverseUrl.TrimEnd('/')}/main.aspx?pagetype=entityrecord&etn={entityLogicalName}&id={recordId}";
     }
 
     // A grounded question-answer agent over one run's results. The analysis is baked into the
@@ -93,17 +66,6 @@ public sealed class WorkflowFactory
           shown in a small chat bubble. No Markdown - no asterisks, bold, headings, or tables.
           Keep it short.
         """;
-
-    static Azure.Core.TokenCredential AppUserCredential(string clientIdVar, string clientSecretVar, Azure.Core.TokenCredential fallback)
-    {
-        var clientId = Environment.GetEnvironmentVariable(clientIdVar);
-        var clientSecret = Environment.GetEnvironmentVariable(clientSecretVar);
-        var tenantId = Environment.GetEnvironmentVariable("ZAVA_TENANT_ID");
-
-        return clientId is not null && clientSecret is not null && tenantId is not null
-            ? new ClientSecretCredential(tenantId, clientId, clientSecret)
-            : fallback;
-    }
 
     static string Require(string name) =>
         Environment.GetEnvironmentVariable(name)

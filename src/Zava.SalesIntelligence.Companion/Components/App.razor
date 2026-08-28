@@ -16,7 +16,9 @@
     <Routes />
     <ReconnectModal />
     <script src="@Assets["_framework/blazor.web.js"]"></script>
-    <script src="https://aka.ms/csspeech/jsbrowserpackageraw"></script>
+    <!-- Speech SDK self-hosted (wwwroot/lib/speech-sdk.js) so a slow/unreachable CDN on
+         conference wifi cannot leave SpeechSDK undefined and break the voice path on stage. -->
+    <script src="@Assets["lib/speech-sdk.js"]"></script>
     <script src="@Assets["js/voice-interop.js"]"></script>
 </body>
 

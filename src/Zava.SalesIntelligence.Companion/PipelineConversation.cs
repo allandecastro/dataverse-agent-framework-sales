@@ -30,10 +30,17 @@ public sealed class PipelineConversation(AIAgent agent)
         Converters = { new JsonStringEnumConverter() },
     };
 
+    // One session for the whole conversation so each turn remembers the last: after asking about
+    // Litware, "approve the appointment" resolves without naming it again. The MAF session carries
+    // the history - our code does not stitch turns together. Created on the first turn and reused;
+    // AskAsync runs serially (the UI blocks overlapping asks), so no locking is needed.
+    AgentSession? _session;
+
     public async Task<ConversationTurn> AskAsync(string question, CancellationToken cancellationToken = default)
     {
+        _session ??= await agent.CreateSessionAsync(cancellationToken);
         var options = new AgentRunOptions { ResponseFormat = ChatResponseFormat.ForJsonSchema<ConversationTurn>() };
-        var response = await agent.RunAsync(question, options: options, cancellationToken: cancellationToken);
+        var response = await agent.RunAsync(question, _session, options, cancellationToken);
         return string.IsNullOrWhiteSpace(response.Text)
             ? new ConversationTurn("I could not answer that.", TurnAction.None, [])
             : JsonSerializer.Deserialize<ConversationTurn>(response.Text, Options)

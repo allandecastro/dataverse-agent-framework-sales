@@ -8,8 +8,8 @@ using Zava.SalesIntelligence.Dataverse;
 
 namespace Zava.SalesIntelligence.Workflow;
 
-// Watcher: retrieves every account context. The per-account reads run concurrently
-// inside the executor; the superstep barrier holds the Thinker until all are done.
+// Watcher: retrieves the context for each account the seller owns. The per-account reads run
+// concurrently inside the executor; the superstep barrier holds the Thinker until all are done.
 [SendsMessage(typeof(ContextBatch))]
 internal sealed partial class WatcherExecutor(WatcherQueries queries, WatcherService watcher, TimeSpan pacing)
     : Executor<string>("watcher")
@@ -50,13 +50,45 @@ internal sealed partial class ThinkerExecutor(AIAgent thinker, TimeSpan pacing)
 
     async Task<Judged> JudgeAndTraceAsync(AccountContext accountContext, IWorkflowContext context, CancellationToken cancellationToken)
     {
-        var judged = await JudgeAsync(accountContext, cancellationToken);
+        Judged judged;
+        try
+        {
+            judged = await JudgeAsync(accountContext, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // One account's model call failed (even after the retry). Drop that account
+            // (InsufficientSignal) so the run continues, rather than faulting the whole stage
+            // live. The Ranker drops InsufficientSignal anyway.
+            await context.AddEventAsync(new AgentThoughtEvent("Thinker",
+                $"{accountContext.AccountName} -> could not be judged this run ({ex.Message}); dropped"), cancellationToken);
+            return new Judged(accountContext, InsufficientSignalFallback(accountContext), null);
+        }
+
         var a = judged.Assessment;
         // Show InsufficientSignal for a refusal rather than the archetype enum's default.
         var call = a.Confidence == Confidence.InsufficientSignal ? "InsufficientSignal" : a.Archetype.ToString();
         await context.AddEventAsync(new AgentThoughtEvent("Thinker",
             $"{a.AccountName} -> {call} (BANT {a.Bant.Score}/4): {Clip(a.Rationale)}"), cancellationToken);
         return judged;
+    }
+
+    // A "not judged" assessment for an account whose model call failed, so the run degrades by
+    // one account instead of crashing. InsufficientSignal makes the Ranker drop it.
+    static OpportunityAssessment InsufficientSignalFallback(AccountContext accountContext)
+    {
+        var opportunity = accountContext.Opportunities.Count > 0 ? accountContext.Opportunities[0] : null;
+        var missing = new BantCriterion(BantStatus.Missing, "Not judged this run after a model error.", []);
+        return new OpportunityAssessment(
+            accountContext.AccountName,
+            opportunity?.Name ?? accountContext.AccountName,
+            opportunity?.Amount ?? 0m,
+            opportunity?.CloseDate,
+            opportunity?.Stage ?? "",
+            new BantAssessment(missing, missing, missing, missing),
+            Archetype.Reconnect, // unused - InsufficientSignal governs and the Ranker drops it
+            "This account could not be judged this run and was dropped.",
+            Confidence.InsufficientSignal);
     }
 
     async Task<Judged> JudgeAsync(AccountContext accountContext, CancellationToken cancellationToken)
@@ -159,10 +191,20 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
 
             {{JsonSerializer.Serialize(judged.Context)}}
             """;
-        var assessment = await StructuredAgent.RunAsync<OpportunityAssessment>(thinker, input, cancellationToken);
-        await context.AddEventAsync(new AgentThoughtEvent("Thinker",
-            $"Re-examined {assessment.AccountName}: {assessment.Archetype} (BANT {assessment.Bant.Score}/4)"), cancellationToken);
-        return judged with { Assessment = assessment };
+        try
+        {
+            var assessment = await StructuredAgent.RunAsync<OpportunityAssessment>(thinker, input, cancellationToken);
+            await context.AddEventAsync(new AgentThoughtEvent("Thinker",
+                $"Re-examined {assessment.AccountName}: {assessment.Archetype} (BANT {assessment.Bant.Score}/4)"), cancellationToken);
+            return judged with { Assessment = assessment };
+        }
+        catch (Exception ex)
+        {
+            // Re-examination failed - keep the first assessment rather than fault the run.
+            await context.AddEventAsync(new AgentThoughtEvent("Thinker",
+                $"Could not re-examine {judged.Assessment.AccountName} ({ex.Message}); keeping the first assessment"), cancellationToken);
+            return judged;
+        }
     }
 }
 
@@ -170,7 +212,7 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
 // then sends them to the approval gate. Each action's target is set to the real
 // opportunity id so an approved action can be written. It does not write itself.
 [SendsMessage(typeof(ApprovalRequest))]
-internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pacing)
+internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? meddpiccScorer, TimeSpan pacing)
     : Executor<ChallengedBatch>("actions")
 {
     public override async ValueTask HandleAsync(ChallengedBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
@@ -186,16 +228,34 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
         foreach (var (judged, recommendation) in message.Items.Zip(prepared))
         {
             recommendations.Add(recommendation);
-            // Target the opportunity the assessment is about, not just the first one - an
-            // account can have more than one open opportunity.
-            var opportunity = judged.Context.Opportunities
-                .FirstOrDefault(candidate => candidate.Name == recommendation.Assessment.OpportunityName)
-                ?? judged.Context.Opportunities.FirstOrDefault();
+            // Resolve which opportunity the assessment (and its write) targets. With a single open
+            // opportunity there is no ambiguity - use it directly rather than trust a model-
+            // regenerated name. Only match by name when the account has more than one, keeping a
+            // first-opportunity fallback so a write never lands nowhere.
+            var opportunities = judged.Context.Opportunities;
+            var opportunity = opportunities.Count switch
+            {
+                0 => null,
+                1 => opportunities[0],
+                _ => opportunities.FirstOrDefault(candidate => candidate.Name == recommendation.Assessment.OpportunityName)
+                     ?? opportunities[0],
+            };
             var opportunityId = opportunity?.OpportunityId ?? Guid.Empty;
+            var contacts = judged.Context.Contacts;
+            var primaryContact = contacts.FirstOrDefault(contact => contact.IsActive)
+                ?? (contacts.Count > 0 ? contacts[0] : null);
             foreach (var action in recommendation.Actions)
             {
+                // Invite the contact the action names (matched on first name) when we can find them,
+                // else the account's primary active contact - a real client attendee either way.
+                var named = contacts.FirstOrDefault(contact =>
+                    FirstName(contact.FullName) is { Length: > 0 } first
+                    && (action.Title.Contains(first, StringComparison.OrdinalIgnoreCase)
+                        || action.Body.Contains(first, StringComparison.OrdinalIgnoreCase)));
+                var contactId = (named ?? primaryContact)?.ContactId;
                 proposals.Add(new ActionProposal(
-                    number++, recommendation.Assessment.OpportunityName, action with { TargetRecordId = opportunityId }));
+                    number++, recommendation.Assessment.OpportunityName,
+                    action with { TargetRecordId = opportunityId, TargetContactId = contactId }));
             }
         }
 
@@ -205,11 +265,42 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
 
     async Task<RankedRecommendation> PrepareAndTraceAsync(Judged judged, int rank, IWorkflowContext context, CancellationToken cancellationToken)
     {
-        var recommendation = await PrepareAsync(judged, rank, cancellationToken);
+        RankedRecommendation recommendation;
+        try
+        {
+            recommendation = await PrepareAsync(judged, rank, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Action prep for one account failed - propose nothing for it rather than fault the run.
+            await context.AddEventAsync(new AgentThoughtEvent("Operator",
+                $"{judged.Assessment.AccountName}: no actions this run ({ex.Message})"), cancellationToken);
+            return new RankedRecommendation(rank, judged.Assessment, []);
+        }
+
         var summary = recommendation.Actions.Count == 0
             ? "no action proposed"
             : string.Join("; ", recommendation.Actions.Select(action => $"{action.Type} - {action.Title}"));
         await context.AddEventAsync(new AgentThoughtEvent("Operator", $"{recommendation.Assessment.AccountName}: {summary}"), cancellationToken);
+
+        // AE persona: layer the MEDDPICC read on top. It is additive - a separate scorer on the
+        // same evidence - so a failure just skips it and the BANT recommendation stands.
+        if (meddpiccScorer is not null)
+        {
+            try
+            {
+                var scorecard = await StructuredAgent.RunAsync<MeddpiccScorecard>(
+                    meddpiccScorer, JsonSerializer.Serialize(judged.Context), cancellationToken);
+                recommendation = recommendation with { Meddpicc = scorecard };
+                await context.AddEventAsync(new AgentProgressEvent("MEDDPICC",
+                    $"{recommendation.Assessment.AccountName}: {scorecard.Score}/8 elements confirmed"), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await context.AddEventAsync(new AgentThoughtEvent("MEDDPICC",
+                    $"{recommendation.Assessment.AccountName} -> not scored this run ({ex.Message})"), cancellationToken);
+            }
+        }
         return recommendation;
     }
 
@@ -220,6 +311,13 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
         Converters = { new JsonStringEnumConverter() },
     };
 
+    // The first token of a full name, for matching "Omar Said" against an action that says "Omar".
+    static string FirstName(string fullName)
+    {
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length > 0 ? parts[0] : "";
+    }
+
     async Task<RankedRecommendation> PrepareAsync(Judged judged, int rank, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(judged.Assessment, OperatorInput);
@@ -229,13 +327,22 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pac
     }
 }
 
-// Execute: writes the approved actions. Creates (task, appointment) run under the current
-// identity now; opportunity updates (stage, close date) mutate the fixture and land under
-// the writer identity in phase 4, so they are approved here but applied there.
+// Execute: writes the approved actions under the writer identity. All four tools write for real -
+// creates (task, appointment) and opportunity updates (stage, close date). The stage and close
+// date edits mutate the very fields the Watcher reads, so scripts/reset-demo.ps1 restores the
+// opportunities to their dataset.json state before each run; that is what keeps the "same result
+// every run" gate true even though the run now edits the source.
+// The gate loops: on a partial approval the seller keeps the rest (message.Next), so this
+// executor writes the approved batch and, if there is a next round, sends its ApprovalRequest
+// back to the port instead of finishing. It accumulates every write across rounds and yields the
+// final WriteReport only when the seller is done - so approving some actions never loses the rest.
 [YieldsOutput(typeof(WriteReport))]
+[SendsMessage(typeof(ApprovalRequest))]
 internal sealed partial class ExecuteExecutor(WriterTools writer, TimeSpan pacing)
     : Executor<ApprovalDecision>("execute")
 {
+    readonly List<WriteResult> _written = [];
+
     public override async ValueTask HandleAsync(ApprovalDecision message, IWorkflowContext context, CancellationToken cancellationToken = default)
     {
         await Task.Delay(pacing, cancellationToken);
@@ -244,41 +351,75 @@ internal sealed partial class ExecuteExecutor(WriterTools writer, TimeSpan pacin
             await context.AddEventAsync(new AgentProgressEvent("Operator", $"Writing {message.Approved.Count} approved action(s) to Dataverse under the writer identity"), cancellationToken);
         }
 
-        var lines = new List<string>();
         foreach (var proposal in message.Approved)
         {
-            lines.Add(await ExecuteAsync(proposal, cancellationToken));
-        }
-        if (message.Approved.Count == 0)
-        {
-            lines.Add("Nothing approved, nothing written.");
+            _written.Add(await ExecuteAsync(proposal, cancellationToken));
         }
 
-        await context.YieldOutputAsync(new WriteReport(lines), cancellationToken);
+        // Another round: re-open the gate with the proposals the seller kept.
+        if (message.Next is { Proposals.Count: > 0 } next)
+        {
+            await context.AddEventAsync(new AgentProgressEvent("Operator", $"{next.Proposals.Count} action(s) kept for another round - back to the approval gate"), cancellationToken);
+            await context.SendMessageAsync(next, cancellationToken);
+            return;
+        }
+
+        // Done: report everything written across all rounds.
+        if (_written.Count == 0)
+        {
+            _written.Add(new WriteResult("Nothing approved, nothing written."));
+        }
+        await context.YieldOutputAsync(new WriteReport(_written), cancellationToken);
     }
 
-    async Task<string> ExecuteAsync(ActionProposal proposal, CancellationToken cancellationToken)
+    async Task<WriteResult> ExecuteAsync(ActionProposal proposal, CancellationToken cancellationToken)
     {
         var action = proposal.Action;
         if (action.TargetRecordId == Guid.Empty)
         {
-            return $"Skipped {action.Type} on {proposal.OpportunityName}: no target opportunity on the account";
+            return new WriteResult($"Skipped {action.Type} on {proposal.OpportunityName}: no target opportunity on the account");
         }
         var regarding = new EntityReference("opportunity", action.TargetRecordId);
 
-        switch (action.Type)
+        // A write that throws must not sink the whole run: catch it so the report still yields
+        // and the failure is visible with its reason, instead of vanishing before YieldOutput.
+        try
         {
-            case ActionType.Task:
-                await writer.CreateTaskAsync(regarding, action.Title, action.Body, action.DueDate, cancellationToken);
-                return $"Wrote task '{action.Title}' on {proposal.OpportunityName}";
+            switch (action.Type)
+            {
+                case ActionType.Task:
+                    var taskId = await writer.CreateTaskAsync(regarding, action.Title, action.Body, action.DueDate, cancellationToken);
+                    return new WriteResult($"Wrote task '{action.Title}' on {proposal.OpportunityName}", "task", taskId);
 
-            case ActionType.Appointment:
-                var start = action.DueDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
-                await writer.CreateAppointmentAsync(regarding, action.Title, action.Body, start, cancellationToken);
-                return $"Wrote appointment '{action.Title}' on {proposal.OpportunityName}";
+                case ActionType.Appointment:
+                    var start = action.DueDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+                    var appointmentId = await writer.CreateAppointmentAsync(regarding, action.Title, action.Body, start, action.TargetContactId, cancellationToken);
+                    return new WriteResult($"Wrote appointment '{action.Title}' on {proposal.OpportunityName}", "appointment", appointmentId);
 
-            default:
-                return $"Approved {action.Type} on {proposal.OpportunityName} (applied under the writer identity in phase 4)";
+                case ActionType.StageUpdate:
+                    // The model decides WHEN to correct the stage; code fixes WHAT to. A StageUpdate
+                    // only ever walks an over-stated deal back to reality, so the bounded target is
+                    // Qualify - no free-form stage from the model.
+                    await writer.UpdateOpportunityStageAsync(action.TargetRecordId, "Qualify", cancellationToken);
+                    return new WriteResult($"Wrote stage update on {proposal.OpportunityName} - moved to Qualify", "opportunity", action.TargetRecordId);
+
+                case ActionType.CloseDateUpdate:
+                    // The new date is the Operator's evidence-grounded suggestion (a bounded typed
+                    // value, not a free-form query). No suggestion means nothing to write.
+                    if (action.DueDate is not { } newCloseDate)
+                    {
+                        return new WriteResult($"Skipped close-date update on {proposal.OpportunityName}: no suggested date");
+                    }
+                    await writer.UpdateCloseDateAsync(action.TargetRecordId, newCloseDate, cancellationToken);
+                    return new WriteResult($"Wrote close-date update on {proposal.OpportunityName} - moved to {newCloseDate.ToString("d MMM yyyy", System.Globalization.CultureInfo.InvariantCulture)}", "opportunity", action.TargetRecordId);
+
+                default:
+                    return new WriteResult($"Approved {action.Type} on {proposal.OpportunityName}");
+            }
+        }
+        catch (Exception ex)
+        {
+            return new WriteResult($"Could not write {action.Type} on {proposal.OpportunityName}: {ex.Message}");
         }
     }
 }

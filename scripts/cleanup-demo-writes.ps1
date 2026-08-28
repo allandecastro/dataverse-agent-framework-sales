@@ -48,8 +48,7 @@ Write-Host "Writer user: $($writer.fullname) ($($writer.systemuserid))"
 
 $removed = 0
 foreach ($entity in @('tasks', 'appointments')) {
-    $select = if ($entity -eq 'tasks') { 'activityid,subject' } else { 'activityid,subject' }
-    $query = "$baseUrl/$entity`?`$select=$select&`$filter=_ownerid_value eq $($writer.systemuserid)"
+    $query = "$baseUrl/$entity`?`$select=activityid,subject&`$filter=_ownerid_value eq $($writer.systemuserid)"
     $items = (Invoke-RestMethod -Method Get -Uri $query -Headers $headers).value
     Write-Host "$entity owned by the writer: $($items.Count)"
     foreach ($item in $items) {
