@@ -3,10 +3,11 @@ using System.Text.Json.Serialization;
 namespace Zava.SalesIntelligence.Agents.Contracts;
 
 // The AE persona's deeper qualification: the eight MEDDPICC elements, produced by a separate
-// scorer pass (only in the AE persona) as a read layered over the deterministic BANT triage. It
-// informs the seller; it does not drive archetypes or actions, so the determinism gate is
-// unaffected. Reuses BantStatus and Evidence - the status values (Confirmed/Partial/Missing) are
-// rubric-agnostic (a BantStatus -> CriterionStatus rename is a possible future cleanup).
+// scorer pass that runs only in the AE persona, over the same account context the Thinker saw.
+// In AE it drives the board: the scorer assigns the archetype from the eight elements. The BANT
+// triage still runs underneath and still drives the Operator's actions, and the SDR persona
+// never sees this record - so the SDR determinism gate is unaffected. Reuses BantStatus and
+// Evidence - the status values (Confirmed/Partial/Missing) are rubric-agnostic.
 public record MeddpiccScorecard(
     MeddpiccElement Metrics,
     MeddpiccElement EconomicBuyer,

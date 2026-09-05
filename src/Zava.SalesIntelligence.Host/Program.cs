@@ -63,7 +63,11 @@ static IReadOnlyList<ActionProposal> Approve(ApprovalRequest request)
     foreach (var recommendation in request.Recommendations)
     {
         var assessment = recommendation.Assessment;
-        Console.WriteLine($"  #{recommendation.Rank}  {assessment.AccountName}  [{assessment.Archetype}]  bant={assessment.Bant.Score}");
+        // AE persona: the MEDDPICC scorecard drives the board, so show its archetype and score.
+        var line = recommendation.Meddpicc is { } scorecard
+            ? $"[{scorecard.Archetype}]  meddpicc={scorecard.Score}/8"
+            : $"[{assessment.Archetype}]  bant={assessment.Bant.Score}/4";
+        Console.WriteLine($"  #{recommendation.Rank}  {assessment.AccountName}  {line}");
     }
 
     Console.WriteLine("Proposed actions:");

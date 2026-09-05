@@ -2,8 +2,9 @@ namespace Zava.SalesIntelligence.Agents;
 
 // The MEDDPICC scorer's identity - the AE persona's deeper qualification. Like the Thinker it
 // has no tools and no Dataverse identity; it reads the same account context and returns the eight
-// MEDDPICC elements. It is a read layered over the BANT triage, never a replacement - archetypes
-// and actions stay BANT-derived, so the determinism gate is unaffected.
+// MEDDPICC elements plus the archetype they imply. In the AE persona that archetype places the
+// opportunity on the board; the BANT triage keeps driving the Operator's actions, and the SDR
+// persona never runs this agent.
 public static class Meddpicc
 {
     public const string Instructions = """

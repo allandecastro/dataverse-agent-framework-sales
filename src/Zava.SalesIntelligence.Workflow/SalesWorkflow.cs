@@ -12,9 +12,10 @@ public static class SalesWorkflow
 {
     // pacing is a server-side delay in front of each stage, so the companion can show
     // the supersteps arriving at a readable rhythm. Zero for a full-speed run.
-    // meddpiccScorer is the AE persona's optional read: when supplied, the actions stage also
-    // scores each opportunity against MEDDPICC. Null in the SDR persona - the graph is otherwise
-    // identical, and archetypes/actions stay BANT-derived, so the determinism gate is unaffected.
+    // meddpiccScorer is the AE persona's extra read: when supplied, the actions stage also scores
+    // each opportunity against MEDDPICC, and that scorecard's archetype drives the AE board. Null
+    // in the SDR persona - the graph is identical, and archetypes stay BANT-derived there, so the
+    // SDR determinism gate is unaffected.
     public static Microsoft.Agents.AI.Workflows.Workflow Build(
         WatcherQueries queries,
         WatcherService watcher,

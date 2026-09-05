@@ -10,7 +10,9 @@ Demo repo for the session *AI Agents Meet Dataverse: Building Intelligent Automa
 
 A seller asks one question: **what should I focus on this week?**
 
-Three agents answer it. They read the pipeline from Dataverse, assess every open opportunity against BANT with cited evidence, rank them, and prepare actions that are ready to execute. Nothing is written to the CRM without approval.
+Three agents answer it. They read the seller's pipeline from Dataverse, assess every open opportunity against BANT with cited evidence, rank them, and prepare actions that are ready to execute. Nothing is written to the CRM without approval, and the approval gate is iterative - approve some now, keep the rest for later.
+
+The seller picks a lens: **SDR** for the fast BANT triage, or **AE** (account executive) for a full MEDDPICC read that places each deal on the board. Then they talk to the squad's spokesperson, by text or by voice, to ask why and to approve - and the records are written under a scoped writer identity, with a direct link to each one.
 
 The seller never opens Dynamics.
 
@@ -36,7 +38,7 @@ In Copilot Studio you choose your harness. Here you build it.
 | Identity | app user, read only | **none** | app user, write scoped |
 | Writes | no | no | yes, after approval |
 
-The Thinker having no tools and no identity is the point, not an oversight. No tools means no attack surface. It works only on what the Watcher retrieved.
+The Thinker having no tools and no identity is the point, not an oversight. No tools means no attack surface. It works only on what the Watcher retrieved. The AE persona adds a fourth agent, the MEDDPICC scorer, built the same way: no tools, no identity, the `meddpicc-scoring` skill.
 
 ---
 
@@ -55,6 +57,7 @@ flowchart TD
     O -. challenge, once .-> T
     O --> A[Approval gate]
     A --> D[(Dataverse)]
+    A -. kept for another round .-> A
 ```
 
 The Watcher fans out concurrently. Every branch completes before the Thinker starts - that barrier is the superstep model, and it is why the assessments can be compared against each other rather than judged in isolation.
@@ -69,15 +72,14 @@ The Ranker is plain code. Judgement is the model's job; ordering is not.
 src/
   Zava.SalesIntelligence.Agents/       agents, instructions, contracts, skills
   Zava.SalesIntelligence.Dataverse/    client, fixed queries, write tools, auth
-  Zava.SalesIntelligence.Workflow/     executors, edges, ranker, approval gate
+  Zava.SalesIntelligence.Workflow/     executors, edges, ranker, approval gate, identity middleware, SquadFactory
   Zava.SalesIntelligence.Host/         console workflow runner, prints the graph
-  Zava.SalesIntelligence.Companion/    Blazor companion, three screens
-  Zava.SalesIntelligence.Voice/        Blazor voice shell (phase 6, planned)
+  Zava.SalesIntelligence.Companion/    Blazor companion: three screens, spokesperson, voice
 samples/
   single-agent/                        one agent, all read tools - the comparison
   magentic/                            same squad, autonomous orchestration
-scripts/                               provisioning, seed, run helpers
-docs/                                  build brief, architecture, identity, voice
+scripts/                               provisioning, seed, demo reset, run helpers
+docs/                                  architecture, identity, voice, workflow graph, build brief, TODO
 ```
 
 ---
@@ -91,7 +93,7 @@ docs/                                  build brief, architecture, identity, voic
 | Orchestration patterns | `samples/magentic`, `Workflow/` |
 | Exposing Dataverse as tools | `Dataverse/Tools/`, `Agents/skills/` |
 | The squad in action | `Workflow/`, `Companion/` |
-| Identity boundaries | `Dataverse/DataverseClientFactory.cs`, `Host/Program.cs`, `scripts/provision.ps1`, `docs/identity.md` |
+| Identity boundaries | `Workflow/SquadFactory.cs`, `Workflow/AgentIdentity.cs`, `Dataverse/WriterTools.cs`, `scripts/provision.ps1`, `docs/identity.md` |
 | Headless and protocols | `Host/`, `Companion/` |
 
 ---
@@ -102,7 +104,7 @@ docs/                                  build brief, architecture, identity, voic
 
 - .NET 10 SDK
 - A Dataverse environment you can create application users in
-- An Azure OpenAI resource with two deployments
+- An Azure AI Foundry resource with an Azure OpenAI reasoning deployment (the squad) and Azure Speech (the voice); the samples also use a cheaper deployment
 - Azure CLI and Power Platform CLI
 
 **Setup**
@@ -117,11 +119,16 @@ pwsh ./scripts/seed.ps1      -EnvironmentUrl <your-environment-url>   # demo dat
 # the run scripts source it. Set ZAVA_SELLER_USER_ID to the account owner. Without secrets,
 # identity falls back to your az login.
 
+pwsh ./scripts/reset-demo.ps1 -EnvironmentUrl <your-environment-url>   # before every run: approved writes edit the data
+
 ./scripts/run-companion.sh          # the companion at http://localhost:5123
 ./scripts/run-host.sh               # the console host; `run-host.sh graph` prints the workflow as Mermaid
 ```
 
-Then open the companion and click "Run the squad".
+Then open the companion, pick SDR or AE, and click "Run the squad". When the gate opens, ask the
+spokesperson (type, or tap the mic and speak): "why is Litware ready?", then "approve the
+Litware appointment". The record is written and linked. See `docs/architecture.md` for how it
+fits together and `docs/TODO.md` for what is still open.
 
 ---
 

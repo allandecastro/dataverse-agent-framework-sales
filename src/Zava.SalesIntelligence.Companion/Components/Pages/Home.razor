@@ -326,7 +326,7 @@
             <p class="sub">@(_evidence.Meddpicc?.Rationale ?? _evidence.Assessment.Rationale)</p>
             @if (_evidence.Meddpicc is { } scorecard)
             {
-                @* AE persona: the MEDDPICC read. The BANT triage still drove the archetype/actions. *@
+                @* AE persona: the MEDDPICC scorecard, whose archetype placed this card on the board. *@
                 <div class="lens">MEDDPICC read - @scorecard.Score of 8 confirmed</div>
                 @foreach (var (element, criterion) in MeddpiccElements(scorecard))
                 {
@@ -696,7 +696,7 @@
                         }
                         // AE persona: the MEDDPICC scorer runs inside the actions stage, so name it
                         // once the actions are prepared - otherwise the thread only mentions BANT.
-                        if (completed.ExecutorId == "actions" && _persona == Persona.Ae)
+                        if (completed.ExecutorId == "actions" && _ranPersona == Persona.Ae)
                         {
                             _thread.Add("MEDDPICC scored and classified each opportunity - the AE board");
                         }
@@ -873,7 +873,7 @@
         _pending?.TrySetResult(new ApprovalDecision([]));
     }
 
-    // The deep link for a written record, or null for lines that wrote nothing (skips, stubs,
+    // The deep link for a written record, or null for lines that wrote nothing (skips, failures,
     // "nothing written"). Shared by the Done panel and the composer's write confirmation.
     string? RecordLink(WriteResult line) =>
         line.RecordId is { } id && line.EntityLogicalName is { } entity ? Factory.RecordUrl(entity, id) : null;
@@ -892,13 +892,13 @@
         switch (turn.Action)
         {
             case TurnAction.Approve:
-                _pending?.SetResult(Decide(_proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList()));
+                _pending?.TrySetResult(Decide(_proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList()));
                 break;
             case TurnAction.ApproveAll:
-                _pending?.SetResult(Decide(_proposals));
+                _pending?.TrySetResult(Decide(_proposals));
                 break;
             case TurnAction.RejectAll:
-                _pending?.SetResult(new ApprovalDecision([]));
+                _pending?.TrySetResult(new ApprovalDecision([]));
                 break;
         }
     }
@@ -971,9 +971,11 @@
         if (e.Value is true) { _selected.Add(number); } else { _selected.Remove(number); }
     }
 
-    void ApproveSelected() => _pending?.SetResult(Decide(_proposals.Where(p => _selected.Contains(p.Number)).ToList()));
-    void ApproveAll() => _pending?.SetResult(Decide(_proposals));
-    void RejectAll() => _pending?.SetResult(new ApprovalDecision([]));
+    // TrySetResult, not SetResult: a voice approval and a button click can land on the same gate
+    // within a render, and the second must be a no-op rather than an exception.
+    void ApproveSelected() => _pending?.TrySetResult(Decide(_proposals.Where(p => _selected.Contains(p.Number)).ToList()));
+    void ApproveAll() => _pending?.TrySetResult(Decide(_proposals));
+    void RejectAll() => _pending?.TrySetResult(new ApprovalDecision([]));
 
     // Build the decision for a partial approval: write the approved, and if any proposals remain,
     // re-open the gate with them (Next) so nothing is lost. Approving everything ends the run.

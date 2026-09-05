@@ -19,7 +19,7 @@ public record ApprovalRequest(
 public record ApprovalDecision(IReadOnlyList<ActionProposal> Approved, ApprovalRequest? Next = null);
 
 // One line of the write report. When a write created a record, the entry carries its logical
-// name and id so the companion can link straight to it; a plain message (a skip, a phase-4 stub,
+// name and id so the companion can link straight to it; a plain message (a skip, a failed write,
 // nothing written) leaves both null.
 public record WriteResult(string Message, string? EntityLogicalName = null, Guid? RecordId = null);
 
