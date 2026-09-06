@@ -61,16 +61,10 @@ $activityMap = @{
     task        = @{ set = 'tasks';        regard = 'regardingobjectid_account_task' }
 }
 
-# --- Helpers ------------------------------------------------------------------
+# Shared Web API plumbing (token, headers, Invoke-Dataverse).
+. (Join-Path $PSScriptRoot '_dataverse.ps1')
 
-function Get-DataverseToken {
-    if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
-        throw "Azure CLI (az) not found. Install it and run 'az login' first."
-    }
-    $token = az account get-access-token --resource $resource --query accessToken -o tsv
-    if (-not $token) { throw "Could not acquire a token for $resource. Run 'az login' first." }
-    return $token
-}
+# --- Helpers ------------------------------------------------------------------
 
 function Get-DeterministicGuid {
     param([string] $Key)
@@ -80,19 +74,6 @@ function Get-DeterministicGuid {
         return [Guid]::new($bytes)
     }
     finally { $md5.Dispose() }
-}
-
-function Invoke-Dataverse {
-    param([string] $Method, [string] $Uri, $Body)
-    $params = @{ Method = $Method; Uri = $Uri; Headers = $script:headers }
-    if ($null -ne $Body) { $params.Body = ($Body | ConvertTo-Json -Depth 12) }
-    try {
-        return Invoke-RestMethod @params
-    }
-    catch {
-        $detail = $_.ErrorDetails.Message
-        throw "Dataverse $Method $Uri failed: $($_.Exception.Message)`n$detail"
-    }
 }
 
 function Set-Record {
@@ -122,14 +103,7 @@ function Split-PersonName {
 
 # --- Connect ------------------------------------------------------------------
 
-$token = Get-DataverseToken
-$script:headers = @{
-    Authorization      = "Bearer $token"
-    'OData-MaxVersion' = '4.0'
-    'OData-Version'    = '4.0'
-    Accept             = 'application/json'
-    'Content-Type'     = 'application/json; charset=utf-8'
-}
+Connect-Dataverse -Resource $resource
 
 $who = Invoke-Dataverse -Method 'Get' -Uri "$baseUrl/WhoAmI"
 $owner = if ($OwnerId) { $OwnerId } else { $who.UserId }
