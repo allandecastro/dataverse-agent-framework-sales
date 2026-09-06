@@ -51,8 +51,8 @@ If you find yourself writing custom code that reimplements something MAF already
 
 ## Two event types, two code paths
 
-`ProgressEvent` is emitted by the workflow and is deterministic.
-`AgentMessageEvent` comes from a model and varies between runs.
+`AgentProgressEvent` is emitted by the executors and is deterministic (`AgentWriteEvent`, a record that just landed, is on the same path).
+`AgentThoughtEvent` comes from a model and varies between runs.
 
 The companion renders both as dialogue but they must not share a code path. Keeping them separate is what lets us control demo pacing and reason about reliability.
 

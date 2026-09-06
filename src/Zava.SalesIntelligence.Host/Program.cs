@@ -28,6 +28,16 @@ await foreach (var workflowEvent in run.WatchStreamAsync())
 {
     switch (workflowEvent)
     {
+        // The squad's own trace: deterministic progress lines and the models' calls, the same
+        // two event types the companion's activity log shows (see CLAUDE.md).
+        case AgentProgressEvent progress:
+            Console.WriteLine($"  [{progress.Agent}] {progress.Message}");
+            break;
+
+        case AgentThoughtEvent thought:
+            Console.WriteLine($"  [{thought.Agent}] {thought.Text}");
+            break;
+
         case ExecutorCompletedEvent completed:
             Console.WriteLine($"  superstep: {completed.ExecutorId} done");
             break;

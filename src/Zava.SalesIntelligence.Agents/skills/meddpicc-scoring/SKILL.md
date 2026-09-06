@@ -49,10 +49,11 @@ from MEDDPICC, not from BANT:
   threatens it.
 - **Slipping** - it was qualified but is being lost: an active Competition is named, or the
   Decision/Paper process has stalled (a budget moved, a sponsor left), despite earlier progress.
-- **AtRisk** - the stage is ahead of the evidence: thin qualification, with no Economic buyer and no
-  Metrics or Pain to anchor it. Under-qualified rather than slipping.
-- **Reconnect** - qualified but quiet: some elements are confirmed, but there is no engaged Champion
-  and no customer-owned date, so the deal has gone cold.
+- **AtRisk** - the stage is ahead of the evidence: no Economic buyer and no customer-owned decision
+  process to anchor it, whatever the pain. A confirmed Economic buyer rules this out - under-qualified
+  rather than slipping.
+- **Reconnect** - qualified but quiet: some elements are confirmed, but there is no engaged Champion,
+  no customer-owned date, and nothing has moved recently, so the deal has gone cold.
 
 ## Output
 

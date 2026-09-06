@@ -294,6 +294,10 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? med
                 recommendation = recommendation with { Meddpicc = scorecard };
                 await context.AddEventAsync(new AgentProgressEvent("MEDDPICC",
                     $"{recommendation.Assessment.AccountName}: {scorecard.Score}/8 elements confirmed"), cancellationToken);
+                // The scorer's call, like the Thinker's: the archetype it assigned, the eight
+                // statuses in MEDDPICC order (C/P/M), and the rationale - so the log shows why.
+                await context.AddEventAsync(new AgentThoughtEvent("MEDDPICC",
+                    $"{recommendation.Assessment.AccountName} -> {scorecard.Archetype} [{Statuses(scorecard)}]: {Clip(scorecard.Rationale)}"), cancellationToken);
             }
             catch (Exception ex)
             {
@@ -310,6 +314,15 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? med
     {
         Converters = { new JsonStringEnumConverter() },
     };
+
+    // "M:C EB:M DC:P DP:M PP:P IP:C Ch:P Co:M" - Metrics, Economic buyer, Decision criteria,
+    // Decision process, Paper process, Identify pain, Champion, Competition; C/P/M for the status.
+    static string Statuses(MeddpiccScorecard s) =>
+        $"M:{s.Metrics.Status.ToString()[0]} EB:{s.EconomicBuyer.Status.ToString()[0]} DC:{s.DecisionCriteria.Status.ToString()[0]} "
+        + $"DP:{s.DecisionProcess.Status.ToString()[0]} PP:{s.PaperProcess.Status.ToString()[0]} IP:{s.IdentifyPain.Status.ToString()[0]} "
+        + $"Ch:{s.Champion.Status.ToString()[0]} Co:{s.Competition.Status.ToString()[0]}";
+
+    static string Clip(string text) => text.Length > 200 ? text[..197] + "..." : text;
 
     // The first token of a full name, for matching "Omar Said" against an action that says "Omar".
     static string FirstName(string fullName)

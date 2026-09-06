@@ -76,7 +76,7 @@
         { "key": "act-002-paper", "type": "email", "subject": "Order paperwork request", "dateOffsetDays": -3, "contactKey": "ct-002-priya", "description": "Priya asked for the order paperwork." }
       ],
       "notes": [
-        { "key": "note-002-scope", "regardingKey": "opp-002", "dateOffsetDays": -12, "subject": "Expansion scope", "body": "Priya confirmed budget of 45k approved for phase one and wants two additional sites, Boulder and Reno, live before the winter season." },
+        { "key": "note-002-scope", "regardingKey": "opp-002", "dateOffsetDays": -12, "subject": "Expansion scope", "body": "Priya confirmed budget of 45k approved for phase one and wants two additional sites, Boulder and Reno, live before the winter season. The pilot cut stockouts by about 30 percent at the first site." },
         { "key": "note-002-next", "regardingKey": "opp-002", "dateOffsetDays": -5, "subject": "Next steps", "body": "COO asked for order paperwork. She is targeting signature within three weeks so both sites are ready for peak." }
       ]
     },
@@ -240,7 +240,7 @@
         { "key": "act-008-call", "type": "phonecall", "subject": "Budget confirmation", "dateOffsetDays": -48, "contactKey": "ct-008-carl", "description": "Carl confirmed the budget line." }
       ],
       "notes": [
-        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia wants to lift repeat purchase rate, currently at 18 percent, and asked for a rollout proposal after the design session. Carl confirmed 90k is approved for the program this year. Nothing has moved since - no proposal sent and no follow up booked." }
+        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia wants to lift repeat purchase rate, currently at 18 percent, and asked for a rollout proposal after the design session. Carl confirmed 90k is approved for the program this year, but sign-off for a spend this size sits with their VP of Marketing, Hannah Cole, who has not been brought into the conversation yet. Nothing has moved since - no proposal sent and no follow up booked." }
       ]
     },
     {

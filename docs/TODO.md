@@ -17,9 +17,22 @@ can wobble by one without flipping an archetype).
 
 - [ ] **Run `scripts/reset-demo.ps1` before every run**, as the seller. Approved stage and
       close-date writes edit the fields the Watcher reads, so without a reset the next run drifts.
-- [ ] **AE determinism check.** In AE the archetype is a model judgement over eight elements.
-      Run the AE persona several times on the reset dataset and confirm the board is stable. If
-      it is not, sharpen the dataset or the `meddpicc-scoring` examples - not the prompt tuning.
+- [x] **AE determinism check - PASSED 2026-09-06**, 10 AE + 3 SDR control runs, reset once, no
+      writes, no errors. All eight board accounts identical across the 10 AE runs (Adventure Works,
+      Alpine, Litware ReadyToClose; Northwind, Fabrikam Slipping; Wide World Importers, Tailspin
+      AtRisk; Wingtip Reconnect), full 8-line board every run, and the 3 SDR control runs identical.
+      The MEDDPICC and BANT scores still wobble by one without flipping an archetype. This closed
+      out three earlier flips seen on 2026-09-05 (WWI AtRisk <-> Reconnect, Alpine ReadyToClose <->
+      AtRisk) plus two introduced while fixing them (Adventure Works, Wingtip), with three targeted
+      edits: (1) `meddpicc-scoring/SKILL.md` AtRisk now reads "no Economic buyer and no customer-owned
+      decision process, whatever the pain; a confirmed Economic buyer rules this out" and Reconnect
+      adds "nothing has moved recently"; (2) Alpine's scope note in `data/dataset.json` gained a
+      quantified result ("cut stockouts by about 30 percent") so Metrics/Pain read Confirmed; (3)
+      Wingtip's note names the un-met signer (VP of Marketing Hannah Cole) so Authority reads a stable
+      Partial instead of drifting to Missing and dropping the account to InsufficientSignal. Note the
+      board is an LLM applying a skill, not deterministic by construction - the Ranker is the only
+      deterministic step; "identical across 10 runs" is observed stability. Do not run back to back on
+      stage: ten rapid runs stress the API and can rarely drop a scorecard.
 - [ ] **Live mic and speaker test on the demo machine** (headless cannot drive a mic): grant mic
       permission on http://localhost:5123, "why is Litware ready", hear it, "approve the Litware
       appointment", see the write and its link, then reset.
