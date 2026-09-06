@@ -1,8 +1,13 @@
 # Dataverse Agent Framework - Sales Intelligence
 
-A multi-agent sales intelligence system built on Dataverse with [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/).
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4)
+![Microsoft Agent Framework](https://img.shields.io/badge/Microsoft%20Agent%20Framework-multi--agent-0078D4)
+![Azure AI Foundry](https://img.shields.io/badge/Azure%20AI%20Foundry-Azure%20OpenAI%20%2B%20Speech-0089D6)
+![Licence: MIT](https://img.shields.io/badge/licence-MIT-3da639)
 
-Demo repo for the session *AI Agents Meet Dataverse: Building Intelligent Automations with Microsoft Agent Framework* - Power Platform Community Conference 2026, Las Vegas.
+A multi-agent sales intelligence system on Dataverse, built by hand with [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/). It is a reference for how to orchestrate agents as a workflow graph, expose Dataverse as governed tools, and keep a real identity boundary between the agent that reads and the agent that writes.
+
+The moving parts it demonstrates: three agents (a fourth in the AE persona), a superstep barrier, a deterministic ranker, an approval gate before any write, and a reader/writer identity split enforced by Dataverse security roles - all running against Azure AI Foundry (Azure OpenAI for reasoning, Azure Speech for voice).
 
 ---
 
@@ -15,6 +20,14 @@ Three agents answer it. They read the seller's pipeline from Dataverse, assess e
 The seller picks a lens: **SDR** for the fast BANT triage, or **AE** (account executive) for a full MEDDPICC read that places each deal on the board. Then they talk to the squad's spokesperson, by text or by voice, to ask why and to approve - and the records are written under a scoped writer identity, with a direct link to each one.
 
 The seller never opens Dynamics.
+
+---
+
+## Screens
+
+| The board | Evidence, with cited records | Approval before any write |
+|---|---|---|
+| ![The board - four archetype columns](docs/images/board.png) | ![Evidence panel - BANT or MEDDPICC per axis](docs/images/evidence.png) | ![Approval gate - nothing is written until approved](docs/images/approval.png) |
 
 ---
 
@@ -44,6 +57,39 @@ The Thinker having no tools and no identity is the point, not an oversight. No t
 
 ## Architecture
 
+The system end to end. The LLM agents hold no credential: identity lives at the Dataverse client layer - the reader and writer app users - and is enforced by Dataverse security roles, not by agent code.
+
+```mermaid
+flowchart LR
+    Seller([Seller]) -->|text or voice| Companion
+
+    subgraph app [".NET 10 application"]
+        Companion["Companion<br/>Blazor - board, evidence, approval, spokesperson"]
+        Squad["Squad workflow<br/>Microsoft Agent Framework graph"]
+        Companion --> Squad
+    end
+
+    subgraph foundry ["Azure AI Foundry"]
+        AOAI["Azure OpenAI<br/>reasoning deployment"]
+        Speech["Azure Speech<br/>speech to text + text to speech"]
+    end
+
+    subgraph dv ["Dataverse"]
+        Reader["Reader app user<br/>Zava Agent Reader - read only"]
+        Writer["Writer app user<br/>Zava Agent Writer - create + scoped write"]
+        Data[(Sales pipeline)]
+        Reader --> Data
+        Writer --> Data
+    end
+
+    Squad -->|Thinker, MEDDPICC, Operator reason| AOAI
+    Companion -->|voice| Speech
+    Squad -->|Watcher: fixed queries| Reader
+    Squad -->|Operator: after approval| Writer
+```
+
+### Execution flow
+
 ```mermaid
 flowchart TD
     Q[Seller question] --> W1[Watcher: account 1]
@@ -63,6 +109,20 @@ flowchart TD
 The Watcher fans out concurrently. Every branch completes before the Thinker starts - that barrier is the superstep model, and it is why the assessments can be compared against each other rather than judged in isolation.
 
 The Ranker is plain code. Judgement is the model's job; ordering is not.
+
+### Two event types
+
+The squad emits two kinds of event, kept on two separate code paths so demo pacing and reliability stay under control: deterministic progress from the executors, and model output that varies between runs.
+
+```mermaid
+sequenceDiagram
+    participant E as Executor (deterministic)
+    participant M as Model (Thinker / MEDDPICC)
+    participant C as Companion
+    E->>C: AgentProgressEvent - same every run
+    M->>C: AgentThoughtEvent - varies between runs
+    Note over C: both render as dialogue, on two separate code paths
+```
 
 ---
 
@@ -84,17 +144,18 @@ docs/                                  architecture, identity, voice, workflow g
 
 ---
 
-## Session map
+## Reading guide
 
-| Session block | Where to look |
+| To understand | Start here |
 |---|---|
-| What a harness is | slides |
-| Agent Framework intro | `samples/single-agent`, `docs/architecture.md` |
-| Orchestration patterns | `samples/magentic`, `Workflow/` |
+| One agent vs a built harness | `samples/single-agent`, `docs/architecture.md` |
+| Autonomous vs hand-built orchestration | `samples/magentic` |
 | Exposing Dataverse as tools | `Dataverse/Tools/`, `Agents/skills/` |
-| The squad in action | `Workflow/`, `Companion/` |
-| Identity boundaries | `Workflow/SquadFactory.cs`, `Workflow/AgentIdentity.cs`, `Dataverse/WriterTools.cs`, `scripts/provision.ps1`, `docs/identity.md` |
-| Headless and protocols | `Host/`, `Companion/` |
+| The workflow graph and the superstep barrier | `Workflow/SalesWorkflow.cs`, `Workflow/Executors.cs` |
+| The approval gate | `Workflow/SalesWorkflow.cs`, `Companion/Components/Pages/Home.razor` |
+| The identity boundary | `Workflow/SquadFactory.cs`, `Workflow/AgentIdentity.cs`, `Dataverse/WriterTools.cs`, `scripts/provision.ps1`, `docs/identity.md` |
+| Running it headless | `Host/` |
+| The companion and voice | `Companion/`, `docs/voice.md` |
 
 ---
 
