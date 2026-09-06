@@ -91,23 +91,9 @@ $baseUrl = "$resource/api/data/$ApiVersion"
 if (-not $TenantId) { $TenantId = az account show --query tenantId -o tsv }
 Write-Host "Tenant $TenantId, environment $resource"
 
-$token = az account get-access-token --resource $resource --query accessToken -o tsv
-if (-not $token) { throw "Could not get a Dataverse token. Run 'az login' first." }
-$script:headers = @{
-    Authorization      = "Bearer $token"
-    'OData-MaxVersion' = '4.0'
-    'OData-Version'    = '4.0'
-    Accept             = 'application/json'
-    'Content-Type'     = 'application/json; charset=utf-8'
-}
-
-function Invoke-Dataverse {
-    param([string] $Method, [string] $Uri, $Body)
-    $params = @{ Method = $Method; Uri = $Uri; Headers = $script:headers }
-    if ($null -ne $Body) { $params.Body = ($Body | ConvertTo-Json -Depth 10) }
-    try { return Invoke-RestMethod @params }
-    catch { throw "Dataverse $Method $Uri failed: $($_.Exception.Message)`n$($_.ErrorDetails.Message)" }
-}
+# Shared Web API plumbing (token, headers, Invoke-Dataverse).
+. (Join-Path $PSScriptRoot '_dataverse.ps1')
+Connect-Dataverse -Resource $resource
 
 $who = Invoke-Dataverse -Method 'Get' -Uri "$baseUrl/WhoAmI"
 $businessUnitId = $who.BusinessUnitId

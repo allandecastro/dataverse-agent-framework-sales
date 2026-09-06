@@ -113,13 +113,14 @@
     .col .count { background: rgba(255,255,255,.24); border-radius: 999px; padding: 1px 9px; font-size: 12.5px; font-weight: 600; }
     .col .empty { color: var(--faint); font-size: 12.5px; text-align: center; padding: 10px 0; }
     .acct { width: 100%; text-align: left; font-family: inherit; background: var(--card); display: flex;
-        justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
+        flex-direction: column; align-items: flex-start; gap: 6px; cursor: pointer;
         border: 1px solid var(--stroke-2); border-radius: 6px; padding: 10px 12px; font-size: 14px; font-weight: 600;
         color: var(--ink); transition: background .12s var(--ease), border-color .12s var(--ease); }
     .acct:hover { background: var(--hover); border-color: var(--stroke); }
     .acct:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
-    /* The name flexes and truncates; the badge (wider for "MEDDPICC 5/8") never shrinks or wraps. */
-    .acct > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* The name takes the full card width and wraps at word boundaries; the badge sits on its own
+       line below it, so a long name never gets squeezed to one character per line in a narrow column. */
+    .acct > span:first-child { max-width: 100%; white-space: normal; overflow-wrap: break-word; line-height: 1.3; }
     .acct .bant { flex: 0 0 auto; white-space: nowrap; font-size: 11px; font-weight: 700; color: #fff;
         border-radius: 999px; padding: 2px 8px; letter-spacing: .01em; background: var(--faint); }
     .acct .bant.b4 { background: var(--ready); } .acct .bant.b3 { background: var(--teal); }
@@ -199,6 +200,56 @@
     .log-row.err .m { color: #ff9d9d; }
     .log-empty { color: #808080; padding: 12px 2px; }
 
+    /* One-line description under each column header, so the board reads without a narrator. */
+    .col .blurb { padding: 9px 12px 2px; font-size: 11.5px; line-height: 1.35; color: var(--muted); }
+
+    /* The colour scale shared by the help popover: cold (weak) to closeable. */
+    .scale { display: inline-flex; align-items: center; gap: 4px; }
+    .swatch { width: 15px; height: 10px; border-radius: 3px; }
+    .swatch.b1 { background: var(--slip); } .swatch.b2 { background: var(--risk); }
+    .swatch.b3 { background: var(--teal); } .swatch.b4 { background: var(--ready); }
+
+    /* "How to read the board" help: a "?" button in the header opens a small popover, so the key
+       lives on demand instead of as a permanent block under the board. */
+    .help-wrap { position: relative; display: inline-flex; }
+    .help-btn { width: 34px; height: 34px; border-radius: 999px; border: 1px solid var(--stroke); background: #fff;
+        color: var(--muted); font-weight: 700; font-size: 15px; cursor: pointer; transition: background .12s var(--ease), color .12s var(--ease); }
+    .help-btn:hover { background: var(--hover); color: var(--ink); }
+    .help-btn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+    .help-backdrop { position: fixed; inset: 0; z-index: 40; }
+    .help-pop { position: absolute; top: calc(100% + 8px); right: 0; z-index: 41; width: 320px; background: var(--card);
+        border: 1px solid var(--stroke); border-radius: 12px; box-shadow: var(--shadow-16); padding: 16px 18px; animation: rise .18s var(--ease) both; }
+    .help-pop .help-title { font-size: 13px; font-weight: 700; margin-bottom: 12px; color: var(--ink); }
+    .help-pop .help-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .help-pop .help-lbl { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); min-width: 74px; }
+    .help-pop .help-note { margin: 5px 0 14px; font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+    .help-pop .help-note:last-child { margin-bottom: 0; }
+
+    /* Activity log: filter chips per agent, a deterministic/model key, and a copy button. */
+    .log-head-actions { display: inline-flex; align-items: center; gap: 10px; }
+    .log-copy { background: transparent; border: 1px solid #444; color: #cfcfcf; font-family: inherit; font-size: 11.5px;
+        padding: 3px 11px; border-radius: 6px; cursor: pointer; }
+    .log-copy:hover { background: #2a2a2a; color: #fff; }
+    .log-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 14px 6px; }
+    .log-filters .chip { background: #2a2a2a; border: 1px solid #3a3a3a; color: #bdbdbd; font-family: inherit; font-size: 11px;
+        padding: 3px 11px; border-radius: 999px; cursor: pointer; }
+    .log-filters .chip:hover { background: #333; color: #fff; }
+    .log-filters .chip.on { background: #3a6ea5; border-color: #3a6ea5; color: #fff; }
+    .log-key { display: flex; gap: 16px; padding: 2px 14px 10px; font-size: 11px; color: #9a9a9a; border-bottom: 1px solid #2a2a2a; }
+    .log-key i.k { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
+    .log-key i.k.prog { background: #3aa0a0; } .log-key i.k.thou { background: #8a6ff0; }
+    .log-row.progress { border-left: 2px solid #2f7a7a; padding-left: 9px; }
+    .log-row.thought { border-left: 2px solid #6b52c9; padding-left: 9px; }
+    .log-row.err { border-left: 2px solid #b53a3a; padding-left: 9px; }
+    .log-row.system { border-left: 2px solid #3a3a3a; padding-left: 9px; }
+
+    /* A calmer "thinking" beat than the spinner for the long reasoning wait: three dots breathing. */
+    .dots { display: inline-flex; gap: 4px; flex: 0 0 auto; margin-top: 7px; }
+    .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--recon); opacity: .3; animation: breathe 1.5s var(--ease) infinite; }
+    .dots i:nth-child(2) { animation-delay: .22s; } .dots i:nth-child(3) { animation-delay: .44s; }
+    .step.active { transition: background .3s var(--ease); }
+    @@keyframes breathe { 0%, 100% { opacity: .25; transform: translateY(0); } 50% { opacity: .9; transform: translateY(-2px); } }
+
     @@keyframes spin { to { transform: rotate(360deg); } }
     @@keyframes rise { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
 
@@ -261,6 +312,29 @@
                     }
                 </button>
             }
+            <div class="help-wrap">
+                <button class="help-btn" @onclick="() => _showHelp = !_showHelp"
+                        aria-label="How to read the board" aria-expanded="@_showHelp" title="How to read the board">?</button>
+                @if (_showHelp)
+                {
+                    <div class="help-backdrop" @onclick="() => _showHelp = false"></div>
+                    <div class="help-pop" role="dialog" aria-label="How to read the board">
+                        <div class="help-title">How to read the board</div>
+                        <div class="help-row">
+                            <span class="help-lbl">Card badge</span>
+                            <span class="scale"><span class="swatch b1"></span><span class="swatch b2"></span><span class="swatch b3"></span><span class="swatch b4"></span></span>
+                        </div>
+                        <p class="help-note">Colour shows how qualified the deal is, weak to closeable. The number is BANT out of 4 (SDR) or MEDDPICC out of 8 (AE).</p>
+                        <div class="help-row">
+                            <span class="help-lbl">Evidence</span>
+                            <span class="status Confirmed">Confirmed</span>
+                            <span class="status Partial">Partial</span>
+                            <span class="status Missing">Missing</span>
+                        </div>
+                        <p class="help-note">Open a card to see the proof behind each axis, with the record it cites.</p>
+                    </div>
+                }
+            </div>
             <button class="log-toggle" @onclick="() => _showLog = !_showLog">
                 Logs@(_log.Count > 0 ? $" ({_log.Count})" : "")
             </button>
@@ -281,7 +355,7 @@
             }
             @if (_active is not null)
             {
-                <div class="step active"><span class="spinner sm"></span><span>@_active</span></div>
+                <div class="step active"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>@_active</span></div>
             }
         </div>
 
@@ -291,6 +365,7 @@
                 var accounts = _recommendations.Where(r => ArchetypeOf(r) == archetype).ToList();
                 <div class="col @archetype">
                     <header>@Label(archetype) <span class="count">@accounts.Count</span></header>
+                    <div class="blurb">@Blurb(archetype)</div>
                     <div class="body">
                         @if (accounts.Count == 0)
                         {
@@ -318,7 +393,7 @@
 
     @if (_evidence is not null)
     {
-        <div class="panel">
+        <div class="panel" tabindex="-1" @ref="_evidencePanel" @onkeydown="OnEvidenceKey">
             <div class="panel-head">
                 <h2>@_evidence.Assessment.AccountName</h2>
                 <button type="button" class="panel-close" @onclick="() => _evidence = null" aria-label="Close evidence">&times;</button>
@@ -359,7 +434,7 @@
 
     @if (_pending is not null)
     {
-        <div class="panel">
+        <div class="panel" tabindex="-1" @ref="_approvalPanel">
             <h2>Approve before anything is written</h2>
             <p class="sub">Nothing reaches Dataverse until you say so.</p>
             @foreach (var proposal in _proposals)
@@ -373,7 +448,16 @@
             <div class="actions">
                 <button class="btn go" @onclick="ApproveAll">Approve all</button>
                 <button class="btn ghost" @onclick="ApproveSelected">Approve selected</button>
-                <button class="btn no" @onclick="RejectAll">Reject all</button>
+                @* After a first round has been approved, the remaining proposals re-open the gate;
+                   there "Reject all" reads as finishing, not rejecting - so relabel it "Done". *@
+                @if (_approvalRounds > 1)
+                {
+                    <button class="btn ghost" @onclick="RejectAll">Done</button>
+                }
+                else
+                {
+                    <button class="btn no" @onclick="RejectAll">Reject all</button>
+                }
             </div>
         </div>
     }
@@ -489,17 +573,38 @@
     </div>@* end .body *@
 </div>@* end .app (shell) *@
 
-<div class="log-drawer @(_showLog ? "open" : "")" inert="@(!_showLog)" aria-hidden="@(_showLog ? "false" : "true")">
+<div class="log-drawer @(_showLog ? "open" : "")" tabindex="-1" @ref="_logDrawer" @onkeydown="OnLogKey"
+     inert="@(!_showLog)" aria-hidden="@(_showLog ? "false" : "true")">
     <header>
-        Activity log
-        <button class="close" @onclick="() => _showLog = false" aria-label="Close">&times;</button>
+        <span>Activity log</span>
+        <span class="log-head-actions">
+            @if (_log.Count > 0)
+            {
+                <button class="log-copy" @onclick="CopyLog" title="Copy the whole log">Copy</button>
+            }
+            <button class="close" @onclick="() => _showLog = false" aria-label="Close">&times;</button>
+        </span>
     </header>
+    @if (_log.Count > 0)
+    {
+        <div class="log-filters" role="group" aria-label="Filter the log by agent">
+            <button class="chip @(_logAgentFilter is null ? "on" : "")" @onclick="() => _logAgentFilter = null">All</button>
+            @foreach (var agent in LogAgents)
+            {
+                <button class="chip @(_logAgentFilter == agent ? "on" : "")" @onclick="() => _logAgentFilter = agent">@agent</button>
+            }
+        </div>
+        <div class="log-key" aria-hidden="true">
+            <span><i class="k prog"></i> deterministic work</span>
+            <span><i class="k thou"></i> model output</span>
+        </div>
+    }
     <div class="log-body">
         @if (_log.Count == 0)
         {
             <div class="log-empty">No activity yet. Run the squad to see events, timings, and errors here.</div>
         }
-        @foreach (var entry in _log)
+        @foreach (var entry in FilteredLog)
         {
             <div class="log-row @entry.Kind @(entry.Error ? "err" : "")">
                 <span class="t">@entry.Time</span>
@@ -547,6 +652,16 @@
         _ => archetype.ToString(),
     };
 
+    // One line per column, so the audience reads what each archetype means without a narrator.
+    static string Blurb(Archetype archetype) => archetype switch
+    {
+        Archetype.Slipping => "Being lost - a competitor or a stalled process",
+        Archetype.AtRisk => "Stage ahead of the evidence - under-qualified",
+        Archetype.Reconnect => "Qualified but gone quiet",
+        Archetype.ReadyToClose => "Well qualified, moving to signature",
+        _ => "",
+    };
+
     // BANT runs 0-4; colour the badge from cold (red) to closeable (green).
     static string BantClass(int score) => score >= 4 ? "b4" : score == 3 ? "b3" : score == 2 ? "b2" : "b1";
     // MEDDPICC runs 0-8; colour the badge on the same cold-to-closeable scale as BANT.
@@ -592,9 +707,26 @@
     readonly List<WriteResult> _writtenLive = new();   // records as they land, for the live Open-record links
     RankedRecommendation? _evidence;
 
+    // Approval rounds opened so far this run, so the iterative gate can relabel "Reject all" as
+    // "Done" on any round after the first - a later round only opens once some proposals were
+    // approved, so there rejecting the rest means finishing, not discarding.
+    int _approvalRounds;
+
+    // Panel focus management. Focus a panel the moment it opens, and let Escape dismiss the
+    // read-only overlays (evidence, log). The approval gate is a required decision, so Escape
+    // deliberately does not dismiss it - only the buttons or the conversation can.
+    ElementReference _evidencePanel;
+    ElementReference _approvalPanel;
+    ElementReference _logDrawer;
+    bool _evidenceWasOpen;
+    bool _approvalWasOpen;
+    bool _logWasOpen;
+
     // The activity log: the raw event stream behind the dialogue, with timings and full
     // error detail. Off by default so the demo stays the three screens; the toggle opens it.
     bool _showLog;
+    string? _logAgentFilter;   // when set, the drawer shows only this agent's lines
+    bool _showHelp;            // the "how to read the board" popover, opened from the "?" in the header
     readonly List<LogEntry> _log = new();
     readonly System.Diagnostics.Stopwatch _clock = new();
     // Kind: "system" (companion's own lifecycle), "progress" (deterministic work from an
@@ -612,6 +744,19 @@
             error,
             agent,
             kind));
+
+    // Fixed squad order for the filter chips, limited to the agents that actually logged this run.
+    static readonly string[] AgentOrder = ["Watcher", "Thinker", "Ranker", "Operator", "MEDDPICC"];
+    IEnumerable<string> LogAgents => AgentOrder.Where(agent => _log.Any(entry => entry.Agent == agent));
+    IEnumerable<LogEntry> FilteredLog => _logAgentFilter is null ? _log : _log.Where(entry => entry.Agent == _logAgentFilter);
+
+    // Copy the whole log (unfiltered) to the clipboard - handy to paste into a bug report.
+    async Task CopyLog()
+    {
+        var text = string.Join("\n", _log.Select(entry =>
+            $"{entry.Time} +{entry.Elapsed} {(entry.Agent is null ? "" : "[" + entry.Agent + "] ")}{entry.Text}"));
+        try { await JS.InvokeVoidAsync("navigator.clipboard.writeText", text); } catch { /* clipboard may be blocked */ }
+    }
 
     async Task RunAsync()
     {
@@ -632,6 +777,7 @@
         _listening = false;
         _thread.Clear();
         _log.Clear();
+        _logAgentFilter = null;
         _report = null;
         _writtenLive.Clear();
         _evidence = null;
@@ -640,6 +786,7 @@
         _chat = null;
         _qa.Clear();
         _approvedAt = null;
+        _approvalRounds = 0;
         _ranPersona = _persona;   // these results are built under the persona selected now
         _clock.Restart();
         _thread.Add("Starting the squad...");
@@ -706,6 +853,7 @@
 
                     case RequestInfoEvent requestInfo when requestInfo.Request.Data.As<ApprovalRequest>() is { } approvalRequest:
                         _active = null;
+                        _approvalRounds++;
                         _recommendations = approvalRequest.Recommendations;
                         _proposals = approvalRequest.Proposals;
                         _selected.Clear();   // a fresh round: nothing pre-selected
@@ -872,6 +1020,33 @@
         _disposed = true;
         _pending?.TrySetResult(new ApprovalDecision([]));
     }
+
+    // Focus a panel the moment it first opens, so keyboard and screen-reader users land on it
+    // rather than having to tab in from the top of the page.
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_disposed)
+        {
+            return;
+        }
+        if (_evidence is not null && !_evidenceWasOpen) { await TryFocus(_evidencePanel); }
+        _evidenceWasOpen = _evidence is not null;
+        if (_pending is not null && !_approvalWasOpen) { await TryFocus(_approvalPanel); }
+        _approvalWasOpen = _pending is not null;
+        if (_showLog && !_logWasOpen) { await TryFocus(_logDrawer); }
+        _logWasOpen = _showLog;
+    }
+
+    static async Task TryFocus(ElementReference element)
+    {
+        // The element can already be gone by the time this runs (a fast close, a dropped circuit).
+        try { await element.FocusAsync(); } catch { /* nothing to focus */ }
+    }
+
+    // Escape dismisses the read-only overlays. The approval gate is deliberately left out - a
+    // decision has to go through the buttons or the conversation, never a stray keystroke.
+    void OnEvidenceKey(KeyboardEventArgs e) { if (e.Key == "Escape") { _evidence = null; } }
+    void OnLogKey(KeyboardEventArgs e) { if (e.Key == "Escape") { _showLog = false; } }
 
     // The deep link for a written record, or null for lines that wrote nothing (skips, failures,
     // "nothing written"). Shared by the Done panel and the composer's write confirmation.

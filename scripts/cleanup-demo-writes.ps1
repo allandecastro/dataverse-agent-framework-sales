@@ -31,30 +31,25 @@ $ErrorActionPreference = 'Stop'
 $resource = $EnvironmentUrl.TrimEnd('/')
 $baseUrl = "$resource/api/data/$ApiVersion"
 
-$token = az account get-access-token --resource $resource --query accessToken -o tsv
-if (-not $token) { throw "Could not get a Dataverse token. Run 'az login' first." }
-$headers = @{
-    Authorization      = "Bearer $token"
-    'OData-MaxVersion' = '4.0'
-    'OData-Version'    = '4.0'
-    Accept             = 'application/json'
-}
+# Shared Web API plumbing (token, headers, Invoke-Dataverse).
+. (Join-Path $PSScriptRoot '_dataverse.ps1')
+Connect-Dataverse -Resource $resource
 
 # Resolve the writer application user by name.
 $userQuery = "$baseUrl/systemusers?`$select=systemuserid,fullname&`$filter=lastname eq '$WriterUserLastName'"
-$writer = (Invoke-RestMethod -Method Get -Uri $userQuery -Headers $headers).value | Select-Object -First 1
+$writer = (Invoke-Dataverse -Method Get -Uri $userQuery).value | Select-Object -First 1
 if (-not $writer) { throw "Writer application user (lastname '$WriterUserLastName') not found. Provision first." }
 Write-Host "Writer user: $($writer.fullname) ($($writer.systemuserid))"
 
 $removed = 0
 foreach ($entity in @('tasks', 'appointments')) {
     $query = "$baseUrl/$entity`?`$select=activityid,subject&`$filter=_ownerid_value eq $($writer.systemuserid)"
-    $items = (Invoke-RestMethod -Method Get -Uri $query -Headers $headers).value
+    $items = (Invoke-Dataverse -Method Get -Uri $query).value
     Write-Host "$entity owned by the writer: $($items.Count)"
     foreach ($item in $items) {
         Write-Host "  - $($item.subject)"
         if (-not $WhatIf) {
-            Invoke-RestMethod -Method Delete -Uri "$baseUrl/$entity($($item.activityid))" -Headers $headers | Out-Null
+            Invoke-Dataverse -Method Delete -Uri "$baseUrl/$entity($($item.activityid))" | Out-Null
             $removed++
         }
     }
