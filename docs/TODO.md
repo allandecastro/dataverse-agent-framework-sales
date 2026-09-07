@@ -73,8 +73,10 @@ can wobble by one without flipping an archetype).
   demo different. Real cost: NuGet, bot registration, hosting, auth (ask before any of them).
 - **MEDDPICC-driven actions**: today MEDDPICC drives the AE board; the Operator's actions are
   still BANT-driven.
-- **MAF upgrade**: dependabot PR #34 (1.17 -> 1.19) was closed to keep the demo pinned; reopen
-  after the session.
+- **Dependency pins for the demo**: MAF is held at 1.17.0 - dependabot PRs #34 (1.17 -> 1.19)
+  and #36 (1.17 -> 1.20) were closed to keep the demo pinned (the gate and the magentic note are
+  validated on 1.17). #37 (Dataverse.Client 1.2.26 -> 1.2.27, a safe patch) was also held. Take
+  them after the session.
 - `samples/magentic` is drafted but held: the Magentic driver does not pump past one superstep
   on MAF 1.17. The README comparison is the value.
 - Ranker `ReferenceEqualityComparer` round-trip reads obscurely; left as is because changing it
