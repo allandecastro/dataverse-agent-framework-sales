@@ -51,7 +51,7 @@ In Copilot Studio you choose your harness. Here you build it.
 | Identity | app user, read only | **none** | app user, write scoped |
 | Writes | no | no | yes, after approval |
 
-The Thinker having no tools and no identity is the point, not an oversight. No tools means no attack surface. It works only on what the Watcher retrieved. The AE persona adds a fourth agent, the MEDDPICC scorer, built the same way: no tools, no identity, the `meddpicc-scoring` skill.
+The Thinker having no tools and no identity is the point, not an oversight. No tools means no attack surface. It works only on what the Watcher retrieved. The AE persona adds a fourth agent, the Scorer, built the same way: no tools, no identity, the `meddpicc-scoring` skill.
 
 ---
 
@@ -82,7 +82,7 @@ flowchart LR
         Writer --> Data
     end
 
-    Squad -->|Thinker, MEDDPICC, Operator reason| AOAI
+    Squad -->|Thinker, Scorer, Operator reason| AOAI
     Companion -->|voice| Speech
     Squad -->|Watcher: fixed queries| Reader
     Squad -->|Operator: after approval| Writer
@@ -117,7 +117,7 @@ The squad emits two kinds of event, kept on two separate code paths so demo paci
 ```mermaid
 sequenceDiagram
     participant E as Executor (deterministic)
-    participant M as Model (Thinker / MEDDPICC)
+    participant M as Model (Thinker / Scorer)
     participant C as Companion
     E->>C: AgentProgressEvent - same every run
     M->>C: AgentThoughtEvent - varies between runs

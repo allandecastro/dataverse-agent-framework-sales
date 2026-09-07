@@ -194,7 +194,7 @@
         letter-spacing: .03em; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
     .log-row .ag-Watcher { background: #14314f; color: #79b0ec; } .log-row .ag-Thinker { background: #33245c; color: #bda2f0; }
     .log-row .ag-Ranker { background: #333; color: #adadad; } .log-row .ag-Operator { background: #143a24; color: #74d59a; }
-    .log-row .ag-MEDDPICC { background: #14383a; color: #66c6cb; }
+    .log-row .ag-Scorer { background: #14383a; color: #66c6cb; }
     .log-row .m { color: #d6dde8; white-space: pre-wrap; word-break: break-word; }
     .log-row.thought .m { color: #9fd0ff; font-style: italic; }
     .log-row.err .m { color: #ff9d9d; }
@@ -667,7 +667,7 @@
     // MEDDPICC runs 0-8; colour the badge on the same cold-to-closeable scale as BANT.
     static string MeddpiccClass(int score) => score >= 6 ? "b4" : score >= 4 ? "b3" : score >= 2 ? "b2" : "b1";
 
-    // The archetype that drives the board: in an AE run the MEDDPICC scorer assigns it; otherwise
+    // The archetype that drives the board: in an AE run the Scorer assigns it; otherwise
     // the BANT archetype does. Keyed off the scorecard's presence, so it matches what was run.
     static Archetype ArchetypeOf(RankedRecommendation recommendation) =>
         recommendation.Meddpicc?.Archetype ?? recommendation.Assessment.Archetype;
@@ -746,7 +746,7 @@
             kind));
 
     // Fixed squad order for the filter chips, limited to the agents that actually logged this run.
-    static readonly string[] AgentOrder = ["Watcher", "Thinker", "Ranker", "Operator", "MEDDPICC"];
+    static readonly string[] AgentOrder = ["Watcher", "Thinker", "Ranker", "Operator", "Scorer"];
     IEnumerable<string> LogAgents => AgentOrder.Where(agent => _log.Any(entry => entry.Agent == agent));
     IEnumerable<LogEntry> FilteredLog => _logAgentFilter is null ? _log : _log.Where(entry => entry.Agent == _logAgentFilter);
 
@@ -841,11 +841,11 @@
                         {
                             _thread.Add(stage);
                         }
-                        // AE persona: the MEDDPICC scorer runs inside the actions stage, so name it
+                        // AE persona: the Scorer runs inside the actions stage, so name it
                         // once the actions are prepared - otherwise the thread only mentions BANT.
                         if (completed.ExecutorId == "actions" && _ranPersona == Persona.Ae)
                         {
-                            _thread.Add("MEDDPICC scored and classified each opportunity - the AE board");
+                            _thread.Add("Scorer classified each opportunity against MEDDPICC - the AE board");
                         }
                         _active = Working.GetValueOrDefault(completed.ExecutorId);
                         await InvokeAsync(StateHasChanged);

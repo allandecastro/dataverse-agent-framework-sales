@@ -57,12 +57,12 @@ public static class SquadFactory
             .AsAIAgent(name: "Operator", instructions: Operator.BuildSystemPrompt())
             .WithAuthority("reasoning only - proposes writes for the gate, holds no Dataverse identity");
 
-        // AE persona only: the MEDDPICC scorer, same authority discipline as the Thinker (no tools,
+        // AE persona only: the Scorer, same authority discipline as the Thinker (no tools,
         // no Dataverse identity). Null in SDR, so the run stays identical to the BANT-only path.
         Console.WriteLine($"[persona] {resolved}");
         AIAgent? meddpiccScorer = resolved == Persona.Ae
             ? openAiClient.GetChatClient(reasoningDeployment)
-                .AsAIAgent(name: "MEDDPICC", instructions: Meddpicc.BuildSystemPrompt())
+                .AsAIAgent(name: "Scorer", instructions: Meddpicc.BuildSystemPrompt())
                 .WithAuthority("reasoning only - no tools, no Dataverse identity")
             : null;
 

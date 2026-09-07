@@ -36,7 +36,7 @@ signature carries a `CancellationToken`. See `CLAUDE.md` for the full set of con
 
 Three agents, and each owns its tools and its identity. No agent reaches for another's
 credential or tool, even to unblock something - the boundary is the point. The AE persona
-adds a fourth, the MEDDPICC scorer, built to the same discipline as the Thinker.
+adds a fourth, the Scorer, built to the same discipline as the Thinker.
 
 ### Watcher - retrieves
 
@@ -74,7 +74,7 @@ the samples). The Operator agent holds no Dataverse identity; the approved write
 under the writer credential in the execute stage. Before it prepares an action that rests on
 a Missing axis it can challenge the Thinker once - see the challenge edge below.
 
-### MEDDPICC scorer - the AE persona's lens
+### Scorer - the AE persona's MEDDPICC lens
 
 The companion has a persona toggle. **SDR** is the fast BANT triage described above. **AE**
 (account executive) adds a second scorer that reads the same `AccountContext` and returns a

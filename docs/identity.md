@@ -2,7 +2,7 @@
 
 Retrieval and writes run under different credentials, decided in `SquadFactory` at the
 Dataverse client layer. The executors never see which one they hold, and the LLM agents
-(Thinker, Operator, MEDDPICC scorer) hold no Dataverse credential at all - identity is
+(Thinker, Operator, Scorer) hold no Dataverse credential at all - identity is
 decided outside agent code.
 
 - The **Watcher** reads through a `ServiceClient` built from the reader credential

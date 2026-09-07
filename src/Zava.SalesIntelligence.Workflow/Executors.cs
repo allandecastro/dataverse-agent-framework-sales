@@ -292,16 +292,16 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? med
                 var scorecard = await StructuredAgent.RunAsync<MeddpiccScorecard>(
                     meddpiccScorer, JsonSerializer.Serialize(judged.Context), cancellationToken);
                 recommendation = recommendation with { Meddpicc = scorecard };
-                await context.AddEventAsync(new AgentProgressEvent("MEDDPICC",
+                await context.AddEventAsync(new AgentProgressEvent("Scorer",
                     $"{recommendation.Assessment.AccountName}: {scorecard.Score}/8 elements confirmed"), cancellationToken);
                 // The scorer's call, like the Thinker's: the archetype it assigned, the eight
                 // statuses in MEDDPICC order (C/P/M), and the rationale - so the log shows why.
-                await context.AddEventAsync(new AgentThoughtEvent("MEDDPICC",
+                await context.AddEventAsync(new AgentThoughtEvent("Scorer",
                     $"{recommendation.Assessment.AccountName} -> {scorecard.Archetype} [{Statuses(scorecard)}]: {Clip(scorecard.Rationale)}"), cancellationToken);
             }
             catch (Exception ex)
             {
-                await context.AddEventAsync(new AgentThoughtEvent("MEDDPICC",
+                await context.AddEventAsync(new AgentThoughtEvent("Scorer",
                     $"{recommendation.Assessment.AccountName} -> not scored this run ({ex.Message})"), cancellationToken);
             }
         }
