@@ -240,7 +240,7 @@
         { "key": "act-008-call", "type": "phonecall", "subject": "Budget confirmation", "dateOffsetDays": -48, "contactKey": "ct-008-carl", "description": "Carl confirmed the budget line." }
       ],
       "notes": [
-        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia wants to lift repeat purchase rate, currently at 18 percent, and asked for a rollout proposal after the design session. Carl confirmed 90k is approved for the program this year, but sign-off for a spend this size sits with their VP of Marketing, Hannah Cole, who has not been brought into the conversation yet. Nothing has moved since - no proposal sent and no follow up booked." }
+        { "key": "note-008-need", "regardingKey": "opp-008", "dateOffsetDays": -34, "subject": "Program need", "body": "Mia, their Marketing Director, wants to lift repeat purchase rate from 18 percent and asked for a rollout proposal after the design session. Carl, the Finance Manager, confirmed 90k is approved for the program this year; final sign-off sits with their VP of Marketing, Hannah Cole, who has not been engaged yet. This is a well-qualified deal - approved budget and a clear, quantified need - that has simply gone quiet: no proposal was sent, no follow up was booked, and there has been no contact in over five weeks." }
       ]
     },
     {

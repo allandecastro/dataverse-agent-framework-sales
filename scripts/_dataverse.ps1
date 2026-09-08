@@ -37,7 +37,8 @@ function Connect-Dataverse {
 # body to JSON and surfaces Dataverse's own error detail on failure.
 function Invoke-Dataverse {
     param([string] $Method, [string] $Uri, $Body)
-    $params = @{ Method = $Method; Uri = $Uri; Headers = $script:headers }
+    # TimeoutSec so a request that never comes back fails fast instead of hanging the whole seed.
+    $params = @{ Method = $Method; Uri = $Uri; Headers = $script:headers; TimeoutSec = 100 }
     if ($null -ne $Body) { $params.Body = ($Body | ConvertTo-Json -Depth 12) }
     try {
         return Invoke-RestMethod @params

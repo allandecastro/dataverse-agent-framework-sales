@@ -82,9 +82,14 @@ can wobble by one without flipping an archetype).
   Adding it was tried and reverted - the explicit order perturbed the Thinker's borderline read of
   Wingtip (dropped 4/10 vs 1/10 without it). The board is validated on the unordered reads. If
   reintroduced post-talk, re-run the determinism gate.
-- **Wingtip is borderline**: BANT 2/4, so the Thinker occasionally refuses it to InsufficientSignal
-  (~1/10 back-to-back) and it drops off the board that run. The archetype is stable (Reconnect when
-  present). Sharpen the dataset (a clearer second axis) post-talk if a firmer 10/10 is wanted.
+- **Wingtip is borderline, accepted at 9/10**: BANT 2/4, so the Thinker occasionally refuses it to
+  InsufficientSignal (~1/10 back-to-back) and it drops off the board that run. The archetype is stable
+  (Reconnect when present) - never a wrong column, just occasionally absent. Rewording its note to read
+  as an unambiguous qualified-but-quiet Reconnect did not move it: the refusal is a BANT-2 boundary
+  call, not a wording issue. The only lever left is BANT 3, which needs Authority confirmed via Carl -
+  and that risks flipping Wingtip to Slipping (the "engaged decision maker gone quiet" rule), which is
+  worse. Accepted as the practical floor for the talk (the demo runs once). Revisit post-talk only if a
+  firm 10/10 is required.
 - `samples/magentic` is drafted but held: the Magentic driver does not pump past one superstep
   on MAF 1.17. The README comparison is the value.
 - Ranker `ReferenceEqualityComparer` round-trip reads obscurely; left as is because changing it
