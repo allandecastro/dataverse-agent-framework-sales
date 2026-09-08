@@ -194,6 +194,16 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
         try
         {
             var assessment = await StructuredAgent.RunAsync<OpportunityAssessment>(thinker, input, cancellationToken);
+            // A re-examination that degrades to InsufficientSignal is the model being inconsistent on
+            // a thin account it already judged well enough to rank. Keep the original rather than let
+            // one challenge round erase a prior confident judgment - which would otherwise drop the
+            // account or, in SDR, surface it with a placeholder archetype.
+            if (assessment.Confidence == Confidence.InsufficientSignal)
+            {
+                await context.AddEventAsync(new AgentThoughtEvent("Thinker",
+                    $"Re-examination of {judged.Assessment.AccountName} was inconclusive; keeping the first assessment"), cancellationToken);
+                return judged;
+            }
             await context.AddEventAsync(new AgentThoughtEvent("Thinker",
                 $"Re-examined {assessment.AccountName}: {assessment.Archetype} (BANT {assessment.Bant.Score}/4)"), cancellationToken);
             return judged with { Assessment = assessment };

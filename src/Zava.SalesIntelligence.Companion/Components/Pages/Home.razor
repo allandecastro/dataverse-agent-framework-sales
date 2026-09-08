@@ -829,6 +829,13 @@
                         // A record just landed in Dataverse - show it (and its Open record link) live,
                         // as it happens, rather than waiting for the final report at the end of the gate.
                         _writtenLive.Add(write.Result);
+                        // Attribute it, as it lands, to the conversational answer that approved this
+                        // round (if any). Doing it live - not from the final report - keeps each round's
+                        // writes on the right bubble across an iterative, multi-round approval.
+                        if (_approvedAt is int writeAt && writeAt < _qa.Count && write.Result.RecordId is not null)
+                        {
+                            _qa[writeAt].Writes.Add(write.Result);
+                        }
                         LogTrace("Operator", write.Result.Message, "progress");
                         await InvokeAsync(StateHasChanged);
                         break;
@@ -857,6 +864,7 @@
                         _recommendations = approvalRequest.Recommendations;
                         _proposals = approvalRequest.Proposals;
                         _selected.Clear();   // a fresh round: nothing pre-selected
+                        _approvedAt = null;  // a new round: only this round's conversational approval owns its writes
                         // The results are in - the seller can now ask about them. Built once; later
                         // rounds keep the same conversation (the analysis has not changed).
                         _chat ??= Factory.BuildConversation(SerializeAnalysis());
@@ -873,13 +881,8 @@
 
                     case WorkflowOutputEvent { Data: WriteReport report }:
                         _report = report;
-                        // Attach the written records to the answer that approved them, so the
-                        // links appear inside that response bubble too - not only in the panel.
-                        if (_approvedAt is int at && at < _qa.Count)
-                        {
-                            _qa[at].Writes.AddRange(report.Lines.Where(line => line.RecordId is not null));
-                            _approvedAt = null;
-                        }
+                        // Writes are attributed to their answer live, as each AgentWriteEvent lands
+                        // (above), so nothing to attach here - just record the report.
                         foreach (var line in report.Lines)
                         {
                             Log(line.Message);
@@ -1067,7 +1070,14 @@
         switch (turn.Action)
         {
             case TurnAction.Approve:
-                _pending?.TrySetResult(Decide(_proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList()));
+                var toApprove = _proposals.Where(proposal => _selected.Contains(proposal.Number)).ToList();
+                // A conversational "approve" that matched no proposal is a no-op, not a decision -
+                // leave the gate open rather than resolving with an empty set (which would end the
+                // run having written nothing, with no way to re-approve).
+                if (toApprove.Count > 0)
+                {
+                    _pending?.TrySetResult(Decide(toApprove));
+                }
                 break;
             case TurnAction.ApproveAll:
                 _pending?.TrySetResult(Decide(_proposals));
@@ -1095,7 +1105,10 @@
                         assessment.Amount,
                         assessment.CloseDate,
                         assessment.CrmStage,
-                        assessment.Archetype,
+                        // The archetype the board actually shows: MEDDPICC's in an AE run, BANT's
+                        // otherwise. Sending the BANT one here would let the spokesperson contradict
+                        // the board it is describing.
+                        Archetype = ArchetypeOf(recommendation),
                         assessment.Confidence,
                         assessment.Rationale,
                         Bant = new

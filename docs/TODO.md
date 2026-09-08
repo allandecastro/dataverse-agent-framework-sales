@@ -77,6 +77,14 @@ can wobble by one without flipping an archetype).
   and #36 (1.17 -> 1.20) were closed to keep the demo pinned (the gate and the magentic note are
   validated on 1.17). #37 (Dataverse.Client 1.2.26 -> 1.2.27, a safe patch) was also held. Take
   them after the session.
+- **Read ordering (determinism hardening, reverted)**: a code review flagged that the activity,
+  note and contact reads in `WatcherQueries` have no `AddOrder` (unlike accounts and opportunities).
+  Adding it was tried and reverted - the explicit order perturbed the Thinker's borderline read of
+  Wingtip (dropped 4/10 vs 1/10 without it). The board is validated on the unordered reads. If
+  reintroduced post-talk, re-run the determinism gate.
+- **Wingtip is borderline**: BANT 2/4, so the Thinker occasionally refuses it to InsufficientSignal
+  (~1/10 back-to-back) and it drops off the board that run. The archetype is stable (Reconnect when
+  present). Sharpen the dataset (a clearer second axis) post-talk if a firmer 10/10 is wanted.
 - `samples/magentic` is drafted but held: the Magentic driver does not pump past one superstep
   on MAF 1.17. The README comparison is the value.
 - Ranker `ReferenceEqualityComparer` round-trip reads obscurely; left as is because changing it
