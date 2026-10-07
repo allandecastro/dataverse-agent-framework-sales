@@ -1,0 +1,26 @@
+flowchart TD
+  watcher["watcher (Start)"];
+  thinker["thinker"];
+  scorer["scorer"];
+  join["join"];
+  ranker["ranker"];
+  operator["operator"];
+  challenge["challenge"];
+  actions["actions"];
+  approval["approval"];
+  execute["execute"];
+
+  fan_in_join((fan-in))
+  scorer --> fan_in_join;
+  thinker --> fan_in_join;
+  fan_in_join --> join;
+  watcher --> thinker;
+  watcher --> scorer;
+  join --> ranker;
+  ranker --> operator;
+  operator --> challenge;
+  operator --> actions;
+  challenge --> actions;
+  actions --> approval;
+  approval --> execute;
+  execute --> approval;
