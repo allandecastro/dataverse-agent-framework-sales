@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
+using Microsoft.Agents.AI.Workflows.Reflection;
 using Microsoft.Xrm.Sdk;
 using Zava.SalesIntelligence.Agents.Contracts;
 using Zava.SalesIntelligence.Dataverse;
@@ -103,6 +104,117 @@ internal sealed partial class ThinkerExecutor(AIAgent thinker, TimeSpan pacing)
 
     static string Clip(string text) => text.Length > 150 ? text[..147] + "..." : text;
 }
+
+// Scorer (AE persona only): scores each account against MEDDPICC, no tools, reasoning only. It is
+// a real fan-out branch - it consumes the same ContextBatch the Thinker does and runs concurrently
+// with it. The fan-in barrier then holds both results until each branch has finished. In SDR there
+// is no Scorer, so the graph stays the linear BANT path and the determinism gate is unaffected.
+[SendsMessage(typeof(ScoredBatch))]
+internal sealed partial class ScorerExecutor(AIAgent scorer, TimeSpan pacing)
+    : Executor<ContextBatch>("scorer")
+{
+    public override async ValueTask HandleAsync(ContextBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
+    {
+        await Task.Delay(pacing, cancellationToken);
+        await context.AddEventAsync(new AgentProgressEvent("Scorer", $"Scoring {message.Contexts.Count} accounts against MEDDPICC - no tools, reasoning only"), cancellationToken);
+        var scored = await Task.WhenAll(message.Contexts.Select(ctx => ScoreAndTraceAsync(ctx, context, cancellationToken)));
+        await context.SendMessageAsync(new ScoredBatch(scored.OfType<Scored>().ToList()), cancellationToken);
+    }
+
+    async Task<Scored?> ScoreAndTraceAsync(AccountContext accountContext, IWorkflowContext context, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var scorecard = await StructuredAgent.RunAsync<MeddpiccScorecard>(
+                scorer, JsonSerializer.Serialize(accountContext), cancellationToken);
+            await context.AddEventAsync(new AgentProgressEvent("Scorer",
+                $"{accountContext.AccountName}: {scorecard.Score}/8 elements confirmed"), cancellationToken);
+            // The scorer's call, like the Thinker's: the archetype it assigned, the eight statuses in
+            // MEDDPICC order (C/P/M), and the rationale - so the log shows why.
+            await context.AddEventAsync(new AgentThoughtEvent("Scorer",
+                $"{accountContext.AccountName} -> {scorecard.Archetype} [{Statuses(scorecard)}]: {Clip(scorecard.Rationale)}"), cancellationToken);
+            return new Scored(accountContext.AccountName, scorecard);
+        }
+        catch (Exception ex)
+        {
+            // One account's scorer call failed - skip its scorecard so the run continues and the
+            // BANT judgment still stands, rather than faulting the whole branch.
+            await context.AddEventAsync(new AgentThoughtEvent("Scorer",
+                $"{accountContext.AccountName} -> not scored this run ({ex.Message})"), cancellationToken);
+            return null;
+        }
+    }
+
+    // "M:C EB:M DC:P DP:M PP:P IP:C Ch:P Co:M" - Metrics, Economic buyer, Decision criteria,
+    // Decision process, Paper process, Identify pain, Champion, Competition; C/P/M for the status.
+    static string Statuses(MeddpiccScorecard s) =>
+        $"M:{s.Metrics.Status.ToString()[0]} EB:{s.EconomicBuyer.Status.ToString()[0]} DC:{s.DecisionCriteria.Status.ToString()[0]} "
+        + $"DP:{s.DecisionProcess.Status.ToString()[0]} PP:{s.PaperProcess.Status.ToString()[0]} IP:{s.IdentifyPain.Status.ToString()[0]} "
+        + $"Ch:{s.Champion.Status.ToString()[0]} Co:{s.Competition.Status.ToString()[0]}";
+
+    static string Clip(string text) => text.Length > 200 ? text[..197] + "..." : text;
+}
+
+// Join (AE persona only): the fan-in barrier target. The barrier holds the Thinker's JudgedBatch
+// and the Scorer's ScoredBatch until BOTH branches have produced a message, then streams them
+// here. Join merges each scorecard onto its account's BANT judgment and hands the combined batch
+// to the Ranker. It takes two input types, so it implements one IMessageHandler per type instead
+// of deriving from the single-input Executor<T> the rest of the graph uses.
+// ReflectingExecutor + IMessageHandler is the public multi-input executor API in Agent Framework
+// 1.17 (the pinned version). It is marked obsolete in favour of a source generator that is not
+// shipped in this package yet, so it stays the correct choice here; the suppression is scoped to
+// this one class.
+#pragma warning disable CS0618 // ReflectingExecutor/IMessageHandler: superseded by a generator not in 1.17
+[SendsMessage(typeof(JudgedBatch))]
+internal sealed partial class JoinExecutor(TimeSpan pacing)
+    : ReflectingExecutor<JoinExecutor>("join"),
+      IMessageHandler<JudgedBatch>,
+      IMessageHandler<ScoredBatch>
+{
+    JudgedBatch? _judged;
+    ScoredBatch? _scored;
+
+    public async ValueTask HandleAsync(JudgedBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
+    {
+        _judged = message;
+        await EmitWhenBothArrivedAsync(context, cancellationToken);
+    }
+
+    public async ValueTask HandleAsync(ScoredBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
+    {
+        _scored = message;
+        await EmitWhenBothArrivedAsync(context, cancellationToken);
+    }
+
+    // The barrier delivers the two messages in the same superstep but as separate calls; emit only
+    // once both have landed. The Scorer runs only in AE, so if it had nothing (an empty batch) the
+    // judgments still pass through unchanged.
+    async ValueTask EmitWhenBothArrivedAsync(IWorkflowContext context, CancellationToken cancellationToken)
+    {
+        if (_judged is null || _scored is null)
+        {
+            return;
+        }
+
+        await Task.Delay(pacing, cancellationToken);
+        var byAccount = new Dictionary<string, MeddpiccScorecard>();
+        foreach (var scored in _scored.Items)
+        {
+            byAccount[scored.AccountName] = scored.Scorecard;
+        }
+
+        var merged = _judged.Items
+            .Select(judged => byAccount.TryGetValue(judged.Assessment.AccountName, out var scorecard)
+                ? judged with { Meddpicc = scorecard }
+                : judged)
+            .ToList();
+
+        await context.AddEventAsync(new AgentProgressEvent("Scorer",
+            $"BANT and MEDDPICC joined for {merged.Count} accounts - both branches finished before the Ranker"), cancellationToken);
+        await context.SendMessageAsync(new JudgedBatch(merged), cancellationToken);
+    }
+}
+#pragma warning restore CS0618
 
 // Ranker: plain code, deterministic. Drops refusals and orders the rest, keeping each
 // assessment paired with its context.
@@ -222,7 +334,7 @@ internal sealed partial class ChallengeExecutor(AIAgent thinker, TimeSpan pacing
 // then sends them to the approval gate. Each action's target is set to the real
 // opportunity id so an approved action can be written. It does not write itself.
 [SendsMessage(typeof(ApprovalRequest))]
-internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? meddpiccScorer, TimeSpan pacing)
+internal sealed partial class ActionExecutor(AIAgent operatorAgent, TimeSpan pacing)
     : Executor<ChallengedBatch>("actions")
 {
     public override async ValueTask HandleAsync(ChallengedBatch message, IWorkflowContext context, CancellationToken cancellationToken = default)
@@ -293,29 +405,10 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? med
             : string.Join("; ", recommendation.Actions.Select(action => $"{action.Type} - {action.Title}"));
         await context.AddEventAsync(new AgentThoughtEvent("Operator", $"{recommendation.Assessment.AccountName}: {summary}"), cancellationToken);
 
-        // AE persona: layer the MEDDPICC read on top. It is additive - a separate scorer on the
-        // same evidence - so a failure just skips it and the BANT recommendation stands.
-        if (meddpiccScorer is not null)
-        {
-            try
-            {
-                var scorecard = await StructuredAgent.RunAsync<MeddpiccScorecard>(
-                    meddpiccScorer, JsonSerializer.Serialize(judged.Context), cancellationToken);
-                recommendation = recommendation with { Meddpicc = scorecard };
-                await context.AddEventAsync(new AgentProgressEvent("Scorer",
-                    $"{recommendation.Assessment.AccountName}: {scorecard.Score}/8 elements confirmed"), cancellationToken);
-                // The scorer's call, like the Thinker's: the archetype it assigned, the eight
-                // statuses in MEDDPICC order (C/P/M), and the rationale - so the log shows why.
-                await context.AddEventAsync(new AgentThoughtEvent("Scorer",
-                    $"{recommendation.Assessment.AccountName} -> {scorecard.Archetype} [{Statuses(scorecard)}]: {Clip(scorecard.Rationale)}"), cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                await context.AddEventAsync(new AgentThoughtEvent("Scorer",
-                    $"{recommendation.Assessment.AccountName} -> not scored this run ({ex.Message})"), cancellationToken);
-            }
-        }
-        return recommendation;
+        // AE persona: the MEDDPICC scorecard was produced in parallel by the Scorer branch and
+        // merged onto the judgment by the fan-in Join. Carry it onto the recommendation so the AE
+        // board can read its archetype. Null in SDR, where there is no Scorer.
+        return recommendation with { Meddpicc = judged.Meddpicc };
     }
 
     // Enums as their names, not integers, so the Operator reads "ReadyToClose" and "Confirmed"
@@ -324,15 +417,6 @@ internal sealed partial class ActionExecutor(AIAgent operatorAgent, AIAgent? med
     {
         Converters = { new JsonStringEnumConverter() },
     };
-
-    // "M:C EB:M DC:P DP:M PP:P IP:C Ch:P Co:M" - Metrics, Economic buyer, Decision criteria,
-    // Decision process, Paper process, Identify pain, Champion, Competition; C/P/M for the status.
-    static string Statuses(MeddpiccScorecard s) =>
-        $"M:{s.Metrics.Status.ToString()[0]} EB:{s.EconomicBuyer.Status.ToString()[0]} DC:{s.DecisionCriteria.Status.ToString()[0]} "
-        + $"DP:{s.DecisionProcess.Status.ToString()[0]} PP:{s.PaperProcess.Status.ToString()[0]} IP:{s.IdentifyPain.Status.ToString()[0]} "
-        + $"Ch:{s.Champion.Status.ToString()[0]} Co:{s.Competition.Status.ToString()[0]}";
-
-    static string Clip(string text) => text.Length > 200 ? text[..197] + "..." : text;
 
     // The first token of a full name, for matching "Omar Said" against an action that says "Omar".
     static string FirstName(string fullName)

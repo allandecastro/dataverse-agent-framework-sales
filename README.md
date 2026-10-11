@@ -92,21 +92,22 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    Q[Seller question] --> W1[Watcher: account 1]
-    Q --> W2[Watcher: account 2]
-    Q --> Wn[Watcher: account n]
-    W1 --> T[Thinker: BANT with cited proof]
-    W2 --> T
-    Wn --> T
-    T --> R[Ranker: deterministic, plain code]
+    Q[Seller question] --> W[Watcher: reads every owned account]
+    W --> T[Thinker: BANT with cited proof]
+    W --> S[Scorer: MEDDPICC - AE persona only]
+    T --> B((fan-in barrier))
+    S --> B
+    B --> J[Join: merge BANT + MEDDPICC]
+    J --> R[Ranker: deterministic, plain code]
     R --> O[Operator: prepared actions]
-    O -. challenge, once .-> T
+    O -. challenge, once .-> C[Challenge: Thinker re-examines]
     O --> A[Approval gate]
+    C --> A
     A --> D[(Dataverse)]
     A -. kept for another round .-> A
 ```
 
-The Watcher fans out concurrently. Every branch completes before the Thinker starts - that barrier is the superstep model, and it is why the assessments can be compared against each other rather than judged in isolation.
+Two different kinds of concurrency live here, and they are not the same thing. Inside the Watcher, the per-account reads run concurrently - that is ordinary `Task.WhenAll`, not a framework feature. The framework concurrency is the graph fan-out: in the AE persona the Watcher's output goes to the Thinker (BANT) and the Scorer (MEDDPICC) along two real edges (`AddFanOutEdge`), they run as parallel branches, and a fan-in barrier (`AddFanInBarrierEdge`) holds the Ranker until both have finished before the Join merges them. That barrier is the superstep model made explicit. The SDR persona has no Scorer: the Thinker feeds the Ranker directly, a single linear head.
 
 The Ranker is plain code. Judgement is the model's job; ordering is not.
 
