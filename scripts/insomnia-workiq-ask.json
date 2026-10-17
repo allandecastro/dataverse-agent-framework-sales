@@ -1,0 +1,77 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "ppcc26.workiq",
+  "resources": [
+    {
+      "_id": "wrk_ppcc_workiq",
+      "_type": "workspace",
+      "name": "PPCC26 - Work IQ Ask API",
+      "description": "Live coda moment: Dataverse Ask API (/api/iq/v1.0/ask) over a semantic model, scoped to the signed-in user. Uses the Microsoft-provided sample client ID (pre-approved for all Dataverse environments) - no app registration needed. Ref: learn.microsoft.com/power-apps/developer/data-platform/webapi/insomnia",
+      "scope": "collection"
+    },
+    {
+      "_id": "env_ppcc_workiq",
+      "_type": "environment",
+      "parentId": "wrk_ppcc_workiq",
+      "name": "DV-MAFDEMO-DEV",
+      "data": {
+        "url": "https://dv-mafdemo-dev.crm4.dynamics.com",
+        "redirecturl": "https://localhost",
+        "authurl": "https://login.microsoftonline.com/common/oauth2/authorize?resource={{ _.url }}",
+        "clientid": "51f81489-12ee-4a9e-aaae-a2591f45987d"
+      },
+      "dataPropertyOrder": { "&": ["url", "redirecturl", "authurl", "clientid"] }
+    },
+    {
+      "_id": "req_ppcc_ask_revenue",
+      "_type": "request",
+      "parentId": "wrk_ppcc_workiq",
+      "name": "Ask - highest-revenue opportunity",
+      "method": "POST",
+      "url": "{{ _.url }}/api/iq/v1.0/ask",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {
+        "type": "oauth2",
+        "grantType": "implicit",
+        "authorizationUrl": "{{ _.authurl }}",
+        "clientId": "{{ _.clientid }}",
+        "redirectUrl": "{{ _.redirecturl }}",
+        "responseType": "token"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"query\": \"Which open opportunity has the highest revenue and when does it close?\",\n  \"semanticModelName\": \"SalesSpecificQnA\",\n  \"searchMode\": \"Auto\"\n}"
+      },
+      "metaSortKey": -1
+    },
+    {
+      "_id": "req_ppcc_ask_focus",
+      "_type": "request",
+      "parentId": "wrk_ppcc_workiq",
+      "name": "Ask - focus this week (ThinkDeeper)",
+      "method": "POST",
+      "url": "{{ _.url }}/api/iq/v1.0/ask",
+      "headers": [
+        { "name": "Content-Type", "value": "application/json" },
+        { "name": "Accept", "value": "application/json" }
+      ],
+      "authentication": {
+        "type": "oauth2",
+        "grantType": "implicit",
+        "authorizationUrl": "{{ _.authurl }}",
+        "clientId": "{{ _.clientid }}",
+        "redirectUrl": "{{ _.redirecturl }}",
+        "responseType": "token"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"query\": \"Which accounts should I focus on this week and why? Consider open opportunities closing soon and recent activity.\",\n  \"semanticModelName\": \"SalesSpecificQnA\",\n  \"searchMode\": \"ThinkDeeper\"\n}"
+      },
+      "metaSortKey": -2
+    }
+  ]
+}
